@@ -2,6 +2,7 @@ import asyncio
 import datetime
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
 from uvicorn import Config, Server
 from pymongo import MongoClient, ReturnDocument
 from middlewares.files import create_preview
@@ -63,6 +64,15 @@ async def add_file_info(data: ItemAddFileInfo):
         return obj
     raise HTTPException(status_code=400, detail='No such Object_id was found')
 
+
+@app.get("/uploads/cache/{file_name}")
+async def get_uploaded_file(file_name):
+    try:
+        return StreamingResponse(open(f'cache/{file_name}', mode="rb"))
+
+    except FileNotFoundError as e:
+        print(e)
+        raise HTTPException(status_code=404, detail='file not found')
 
 if __name__ == "__main__":
     loop_main = asyncio.new_event_loop()

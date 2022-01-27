@@ -6,7 +6,7 @@ async def create_preview(path_to_file):
     try:
         save_path = 'cache'
         manager = PreviewManager(save_path, create_folder=True)
-        path_to_preview_image = manager.get_jpeg_preview(path_to_file, page=1, height=1920, width=1920)
+        path_to_preview_image = manager.get_jpeg_preview(path_to_file, page=0, height=1920, width=1920)
         return path_to_preview_image
     except Exception as e:
         print(e)
