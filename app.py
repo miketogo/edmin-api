@@ -2,7 +2,7 @@ import asyncio
 import datetime
 
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.responses import StreamingResponse
 from uvicorn import Config, Server
 from pymongo import MongoClient, ReturnDocument
 from middlewares.files import create_preview
