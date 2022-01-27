@@ -22,7 +22,7 @@ async def create_file(file: UploadFile = File(...), data: ItemUploadFileInfo = D
         doc.write(file_readed)
         file_size = len(file_readed)
     preview_link = await create_preview(f'files/{file.filename}')
-    indo_dict = {
+    info_dict = {
             "file_name": file.filename,
             "file_content_type": file.content_type,
             "file_size": file_size,
@@ -31,8 +31,10 @@ async def create_file(file: UploadFile = File(...), data: ItemUploadFileInfo = D
             "uploaded_by": data.user_id,
             "company_id": data.company_id
         }
-    db.files.insert_one(indo_dict.copy())
-    return indo_dict
+    db.files.insert_one(info_dict)
+    new_info_dict = info_dict.copy()
+    new_info_dict['_id'] = str(new_info_dict['_id'])
+    return new_info_dict
 
 
 if __name__ == "__main__":
