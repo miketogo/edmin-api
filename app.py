@@ -1,10 +1,11 @@
 import asyncio
+import datetime
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Depends
 from uvicorn import Config, Server
 from pymongo import MongoClient
 from middlewares.files import create_preview
-import datetime
+from routes.files import ItemUploadFileInfo
 
 
 client = MongoClient(port=27017)
@@ -15,30 +16,23 @@ app = FastAPI()
 
 
 @app.post("/files/upload")
-async def create_file(file: UploadFile = File(...), user_id: str = Form(...)):
+async def create_file(file: UploadFile = File(...), data: ItemUploadFileInfo = Depends(ItemUploadFileInfo.as_form)):
     file_readed = await file.read()
     with open(f'files/{file.filename}', 'wb') as doc:
         doc.write(file_readed)
         file_size = len(file_readed)
     preview_link = await create_preview(f'files/{file.filename}')
-    db.files.insert_one(
-        {
+    indo_dict = {
             "file_name": file.filename,
             "file_content_type": file.content_type,
             "file_size": file_size,
             "preview_link": preview_link,
             "upload_date": (datetime.datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
-            "uploaded_by": user_id
+            "uploaded_by": data.user_id,
+            "company_id": data.company_id
         }
-    )
-    return {
-        "file_name": file.filename,
-        "file_content_type": file.content_type,
-        "file_size": file_size,
-        "preview_link": preview_link,
-        "upload_date": (datetime.datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
-        "uploaded_by": user_id
-    }
+    db.files.insert_one(indo_dict.copy())
+    return indo_dict
 
 
 if __name__ == "__main__":

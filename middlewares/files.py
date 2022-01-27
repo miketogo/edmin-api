@@ -11,4 +11,3 @@ async def create_preview(path_to_file):
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail='Could not make a preview')
-
