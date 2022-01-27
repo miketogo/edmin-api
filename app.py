@@ -32,9 +32,8 @@ async def create_file(file: UploadFile = File(...), data: ItemUploadFileInfo = D
             "company_id": data.company_id
         }
     db.files.insert_one(info_dict)
-    new_info_dict = info_dict.copy()
-    new_info_dict['_id'] = str(new_info_dict['_id'])
-    return new_info_dict
+    info_dict['_id'] = str(info_dict['_id'])
+    return info_dict
 
 
 if __name__ == "__main__":
