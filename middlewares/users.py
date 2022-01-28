@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel
+from modules import users as users_modules
 
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security.utils import get_authorization_scheme_param
@@ -16,32 +16,6 @@ import config
 SECRET_KEY = config.SECRET_KEY
 ALGORITHM = config.ALGORITHM
 ACCESS_TOKEN_EXPIRE_SECONDS = config.ACCESS_TOKEN_EXPIRE_SECONDS
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    id: Optional[str] = None
-
-
-class User(BaseModel):
-    id: str
-    email: str
-    phone: str
-    name: str
-    surname: str
-    fullname: str
-    patronymic: Optional[str] = None
-    division: Optional[str] = None
-    role: Optional[str] = None
-    company_id: Optional[str] = None
-
-
-class UserInDB(User):
-    password: str
 
 
 class OAuth2PasswordBearer(OAuth2):
@@ -96,10 +70,10 @@ oauth2_scheme = OAuth2PasswordBearer(token_url="/users/login")
 app = FastAPI()
 
 
-async def refresh_token(response, current_user):
+async def refresh_token(response, current_user_id):
     access_token_expires = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
     access_token = await create_access_token(
-        data={"sub": current_user.id}, expires_delta=access_token_expires
+        data={"sub": current_user_id}, expires_delta=access_token_expires
     )
     response.set_cookie(key="Authorization", value='Bearer ' + access_token,
                         max_age=ACCESS_TOKEN_EXPIRE_SECONDS, expires=ACCESS_TOKEN_EXPIRE_SECONDS)
@@ -119,7 +93,7 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False)
     if user is not None:
         user["id"] = str(user["_id"])
         del user["_id"]
-        return UserInDB(**user)
+        return users_modules.UserInDB(**user)
 
 
 async def authenticate_user(email_or_phone: str, password: str):
@@ -128,6 +102,7 @@ async def authenticate_user(email_or_phone: str, password: str):
         return False
     if not await verify_password(password, user.password):
         return False
+    del user.password
     return user
 
 
@@ -153,16 +128,17 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         _id: str = payload.get("sub")
         if _id is None:
             raise credentials_exception
-        token_data = TokenData(id=_id)
+        token_data = users_modules.TokenData(id=_id)
     except JWTError:
         raise credentials_exception
     user = await get_user(token_data.id, _id_check=True)
     if user is None:
         raise credentials_exception
+    del user.password
     return user
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
+async def get_current_active_user(current_user: users_modules.User = Depends(get_current_user)):
     return current_user
 
 
@@ -184,7 +160,19 @@ async def check_user_email_password_in_db(email_or_phone_or_id: str, _id_check: 
         return user_phone_check
     elif _id_check:
         user__id_check = config.db.users.find_one({"_id": ObjectId(email_or_phone_or_id)})
-        print(user__id_check)
         if user__id_check is not None:
             return user__id_check
     return None
+
+
+async def update_last_login(current_user_id, user_agent_header):
+    config.db.users.update_one(
+                    {"_id": ObjectId(current_user_id)},
+                    {
+                        '$push': {
+                            "login_info": {"date": (datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
+                                           "user_agent_header": user_agent_header
+                                           }
+                        }
+                    }
+                )

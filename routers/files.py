@@ -7,7 +7,8 @@ from middlewares.files import create_preview
 from pymongo import ReturnDocument
 from bson import ObjectId
 from fastapi.responses import Response
-from middlewares.users import get_current_active_user, User, refresh_token
+from middlewares.users import get_current_active_user, refresh_token
+from modules.users import User
 import config
 
 
@@ -21,7 +22,7 @@ router = APIRouter(
 @router.post("/upload")
 async def create_file(response: Response, current_user: User = Depends(get_current_active_user),
                       file: UploadFile = File(...)):
-    await refresh_token(response, current_user)
+    await refresh_token(response, current_user.id)
     file_read = await file.read()
     with open(f'files/{file.filename}', 'wb') as doc:
         doc.write(file_read)
@@ -55,7 +56,7 @@ async def create_file(response: Response, current_user: User = Depends(get_curre
 @router.post("/add_info")
 async def add_file_info(data: ItemAddFileInfo, response: Response,
                         current_user: User = Depends(get_current_active_user)):
-    await refresh_token(response, current_user)
+    await refresh_token(response, current_user.id)
     item_updated = dict()
     file_id = data.file_id
     for elem in data:

@@ -40,3 +40,29 @@ class ItemUserSignUp(BaseModel):
         if value is not None and (len(value) != 24 or config.db.users.find_one({"role_id": ObjectId(value)}) is None):
             raise ValueError('role_id validation failed')
         return value
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    id: Optional[str] = None
+
+
+class User(BaseModel):
+    id: str
+    email: str
+    phone: str
+    name: str
+    surname: str
+    fullname: str
+    patronymic: Optional[str] = None
+    division: Optional[str] = None
+    role: Optional[str] = None
+    company_id: Optional[str] = None
+
+
+class UserInDB(User):
+    password: str
