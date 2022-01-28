@@ -1,16 +1,8 @@
 from typing import Optional
 from fastapi import Form
-from pydantic import BaseModel, root_validator
-
-
-def form_body(cls):
-    cls.__signature__ = cls.__signature__.replace(
-        parameters=[
-            arg.replace(default=Form(...))
-            for arg in cls.__signature__.parameters.values()
-        ]
-    )
-    return cls
+from pydantic import BaseModel, root_validator, validator
+from bson import ObjectId
+import config
 
 
 class ItemAddFileInfo(BaseModel):
@@ -19,7 +11,7 @@ class ItemAddFileInfo(BaseModel):
     children: Optional[list]
     parent: Optional[str]
     status: Optional[str]
-    devision: Optional[str]
+    division: Optional[str]
     third_party: Optional[str]
     doc_date: Optional[str]
     exp_date: Optional[str]
@@ -30,10 +22,13 @@ class ItemAddFileInfo(BaseModel):
     def check_status_number_omitted(cls, values):
         if len(values) < 2:
             raise ValueError('one of the optional should be included')
+        if 'has_parent' in values and values['has_parent'] and 'parent' not in values:
+            raise ValueError('if field "has_parent" is true then parent field should not be empty')
         return values
 
-
-@form_body
-class ItemUploadFileInfo(BaseModel):
-    company_id: str = Form(..., min_length=24, max_length=24)
-    user_id: str = Form(..., min_length=24, max_length=24)
+    @validator('parent', check_fields=False)
+    def check_parent_omitted(cls, value):
+        if value is not None and (len(value) != 24
+                                  or config.db.files.find_one({"_id": ObjectId(value)}) is None):
+            raise ValueError('parent validation failed')
+        return value

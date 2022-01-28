@@ -2,13 +2,19 @@ import asyncio
 
 from fastapi import FastAPI
 from uvicorn import Config, Server
-from routers import files
+from routers import files, users
 
 
 app = FastAPI()
 
 
 app.include_router(files.router)
+app.include_router(users.router)
+
+
+@app.get("/")
+async def main_page():
+    return dict(message="Welcome to main page")
 
 
 if __name__ == "__main__":

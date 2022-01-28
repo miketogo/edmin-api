@@ -2,11 +2,13 @@ import datetime
 
 from fastapi import File, APIRouter, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
-from modules.files import ItemUploadFileInfo, ItemAddFileInfo
+from modules.files import ItemAddFileInfo
 from middlewares.files import create_preview
 from pymongo import ReturnDocument
 from bson import ObjectId
-from config import db
+from fastapi.responses import Response
+from middlewares.users import get_current_active_user, User, refresh_token
+import config
 
 
 router = APIRouter(
@@ -17,7 +19,9 @@ router = APIRouter(
 
 
 @router.post("/upload")
-async def create_file(data: ItemUploadFileInfo = Depends(ItemUploadFileInfo), file: UploadFile = File(...)):
+async def create_file(response: Response, current_user: User = Depends(get_current_active_user),
+                      file: UploadFile = File(...)):
+    await refresh_token(response, current_user)
     file_read = await file.read()
     with open(f'files/{file.filename}', 'wb') as doc:
         doc.write(file_read)
@@ -30,8 +34,8 @@ async def create_file(data: ItemUploadFileInfo = Depends(ItemUploadFileInfo), fi
             "size": file_size,
             "preview_path": preview_link,
             "upload_date": (datetime.datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
-            "uploaded_by": data.user_id,
-            "company_id": data.company_id,
+            "uploaded_by": current_user.id,
+            "company_id": current_user.company_id,
             "has_parent": False,
             "children": list(),
             "parent": None,
@@ -43,21 +47,23 @@ async def create_file(data: ItemUploadFileInfo = Depends(ItemUploadFileInfo), fi
             "signed_by": None,
             "recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')
     }
-    db.files.insert_one(info_dict)
+    config.db.files.insert_one(info_dict)
     info_dict['_id'] = str(info_dict['_id'])
     return info_dict
 
 
 @router.post("/add_info")
-async def add_file_info(data: ItemAddFileInfo):
+async def add_file_info(data: ItemAddFileInfo, response: Response,
+                        current_user: User = Depends(get_current_active_user)):
+    await refresh_token(response, current_user)
     item_updated = dict()
     file_id = data.file_id
     for elem in data:
-        if elem[1] is not None and elem[0] != 'file_id':
+        if elem[0] != 'file_id':
             item_updated[str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
-    obj = db.files.find_one_and_update({'_id': ObjectId(file_id)},
-                                       {'$set': item_updated}, return_document=ReturnDocument.AFTER)
+    obj = config.db.files.find_one_and_update({'_id': ObjectId(file_id)},
+                                              {'$set': item_updated}, return_document=ReturnDocument.AFTER)
     if obj is not None:
         obj['_id'] = str(obj['_id'])
         return obj
