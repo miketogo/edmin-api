@@ -72,22 +72,14 @@ class OAuth2PasswordBearer(OAuth2):
         )
 
     async def __call__(self, request: Request) -> Optional[str]:
-        header_authorization: str = request.headers.get("Authorization")
         cookie_authorization: str = request.cookies.get("Authorization")
 
-        header_scheme, header_param = get_authorization_scheme_param(
-            header_authorization
-        )
         cookie_scheme, cookie_param = get_authorization_scheme_param(
             cookie_authorization
         )
         scheme, param = None, None
-        if header_scheme.lower() == "bearer":
-            authorization = True
-            scheme = header_scheme
-            param = header_param
 
-        elif cookie_scheme.lower() == "bearer":
+        if cookie_scheme.lower() == "bearer":
             authorization = True
             scheme = cookie_scheme
             param = cookie_param
@@ -117,10 +109,8 @@ async def refresh_token(response, current_user):
     access_token = create_access_token(
         data={"sub": current_user.username}, expires_delta=access_token_expires
     )
-    response.delete_cookie(key="Authorization")
     response.set_cookie(key="Authorization", value='Bearer ' + access_token,
                         max_age=ACCESS_TOKEN_EXPIRE_SECONDS, expires=ACCESS_TOKEN_EXPIRE_SECONDS)
-    response.headers['Authorization'] = 'Bearer ' + access_token
     return response
 
 
