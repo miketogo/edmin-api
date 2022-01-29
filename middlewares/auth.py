@@ -39,7 +39,7 @@ def get_config():
 @AuthJWT.token_in_denylist_loader
 def check_if_token_in_denylist(decrypted_token):
     jti = decrypted_token['jti']
-    print(jti, decrypted_token)
+    print(decrypted_token)
     return False
 
 
