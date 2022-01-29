@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Optional
 
 from fastapi import FastAPI
@@ -6,37 +5,12 @@ from passlib.context import CryptContext
 from modules import users as users_modules
 from additional_funcs import users as users_additional_funcs
 from fastapi_jwt_auth import AuthJWT
-from pydantic import BaseModel
 import config
-
-SECRET_KEY = config.SECRET_KEY
-ALGORITHM = config.ALGORITHM
-ACCESS_TOKEN_EXPIRE_MINUTES = config.ACCESS_TOKEN_EXPIRE_MINUTES
-REFRESH_TOKEN_EXPIRE_DAYS = config.REFRESH_TOKEN_EXPIRE_DAYS
-
-
-class Settings(BaseModel):
-    authjwt_secret_key: str = SECRET_KEY
-    # Configure application to store and get JWT from cookies
-    authjwt_token_location: set = {"cookies"}
-    # Only allow JWT cookies to be sent over https
-    authjwt_cookie_secure: bool = True
-    # Enable csrf double submit protection. default is True
-    authjwt_cookie_csrf_protect: bool = True
-    # Change to 'lax' in production to make your website more secure from CSRF Attacks, default is None
-    authjwt_cookie_samesite: str = 'lax'
-    # The request methods that will use CSRF protection.
-    authjwt_csrf_methods: set = {"PUT"}
-    # denylist conf
-    authjwt_denylist_enabled: bool = True
-    authjwt_denylist_token_checks: set = {"access", "refresh"}
-    access_expires: int = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    refresh_expires: int = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
 
 @AuthJWT.load_config
 def get_config():
-    return Settings()
+    return config.Settings()
 
 
 @AuthJWT.token_in_denylist_loader
