@@ -23,7 +23,6 @@ async def create_company(response: Response,
                          current_user: users_modules.User
                          = Depends(users_middlewares.get_current_active_user)):
     await users_middlewares.refresh_token(response, current_user.id)
-    print(current_user.company_id, type(current_user.company_id))
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()

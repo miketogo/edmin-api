@@ -52,7 +52,6 @@ async def create_file(response: Response, current_user: User = Depends(users_mid
     }
     config.db.files.insert_one(info_dict)
     info_dict = await users_middlewares.delete_object_ids_from_dict(info_dict)
-    print(info_dict)
     return info_dict
 
 
