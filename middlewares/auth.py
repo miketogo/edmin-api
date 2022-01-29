@@ -1,18 +1,19 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional
 
 from fastapi import FastAPI
-from jose import jwt
 from passlib.context import CryptContext
 from modules import users as users_modules
 from additional_funcs import users as users_additional_funcs
 from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
+import json
 import config
 
 SECRET_KEY = config.SECRET_KEY
 ALGORITHM = config.ALGORITHM
-ACCESS_TOKEN_EXPIRE_SECONDS = config.ACCESS_TOKEN_EXPIRE_SECONDS
+ACCESS_TOKEN_EXPIRE_MINUTES = config.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = config.REFRESH_TOKEN_EXPIRE_DAYS
 
 
 class Settings(BaseModel):
@@ -26,9 +27,12 @@ class Settings(BaseModel):
     # Change to 'lax' in production to make your website more secure from CSRF Attacks, default is None
     authjwt_cookie_samesite: str = 'lax'
     # The request methods that will use CSRF protection.
-    # authjwt_csrf_methods: set = {"PUT"}
+    authjwt_csrf_methods: set = {"PUT"}
+    # denylist conf
     authjwt_denylist_enabled: bool = True
     authjwt_denylist_token_checks: set = {"access", "refresh"}
+    access_expires: int = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    refresh_expires: int = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
 
 @AuthJWT.load_config
@@ -39,8 +43,8 @@ def get_config():
 @AuthJWT.token_in_denylist_loader
 def check_if_token_in_denylist(decrypted_token):
     jti = decrypted_token['jti']
-    print(decrypted_token)
-    return False
+    entry = config.redis_connection.get(jti)
+    return entry and entry == 'true'
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -85,14 +89,3 @@ async def authenticate_user(email_or_phone: str, password: str):
         return False
     del user.password
     return user
-
-
-async def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
