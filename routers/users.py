@@ -25,10 +25,11 @@ async def signup(response: Response, request: Request, user: users_modules.ItemU
     info_dict["password"] = users_middlewares.get_password_hash(user.password)
     info_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     info_dict["fullname"] = info_dict["surname"].title() + ' ' + info_dict["name"].title()
+    info_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     if info_dict["patronymic"] is not None:
         info_dict["fullname"] += ' ' + info_dict["patronymic"].title()
     config.db.users.insert_one(info_dict)
-    info_dict['_id'] = str(info_dict['_id'])
+    info_dict = await users_middlewares.delete_object_ids_from_dict(info_dict)
     await users_middlewares.update_last_login(info_dict['_id'], request.headers.get("user-agent"))
     await users_middlewares.refresh_token(response, info_dict['_id'])
     del info_dict['password']

@@ -16,28 +16,27 @@ class ItemUserSignUp(BaseModel):
     company_id: Optional[str] = None
     role_id: Optional[str] = None
 
-    @validator('email', check_fields=False)
+    @validator('email', allow_reuse=True)
     def check_email_omitted(cls, value):
         if not validate_email(value):
             raise ValueError('email validation failed')
         return value
 
-    @validator('company_id', check_fields=False)
+    @validator('company_id', allow_reuse=True)
     def check_company_id_omitted(cls, value):
-        if value is not None and (len(value) != 24 or config.db.companies.find_one({"_id": ObjectId(value)}) is None):
+        if len(value) != 24 or config.db.companies.find_one({"_id": ObjectId(value)}) is None:
             raise ValueError('company_id validation failed')
         return value
 
-    @validator('division_id', check_fields=False)
+    @validator('division_id', allow_reuse=True)
     def check_division_omitted(cls, value):
-        if value is not None and (len(value) != 24
-                                  or config.db.users.find_one({"division_id": ObjectId(value)}) is None):
+        if len(value) != 24 or config.db.users.find_one({"division_id": ObjectId(value)}) is None:
             raise ValueError('division_id validation failed')
         return value
 
-    @validator('role_id', check_fields=False)
+    @validator('role_id', allow_reuse=True)
     def check_role_id_omitted(cls, value):
-        if value is not None and (len(value) != 24 or config.db.users.find_one({"role_id": ObjectId(value)}) is None):
+        if len(value) != 24 or config.db.users.find_one({"role_id": ObjectId(value)}) is None:
             raise ValueError('role_id validation failed')
         return value
 

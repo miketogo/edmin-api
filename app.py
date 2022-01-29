@@ -2,7 +2,7 @@ import asyncio
 
 from fastapi import FastAPI
 from uvicorn import Config, Server
-from routers import files, users
+from routers import files, users, companies
 
 
 app = FastAPI()
@@ -10,6 +10,7 @@ app = FastAPI()
 
 app.include_router(files.router)
 app.include_router(users.router)
+app.include_router(companies.router)
 
 
 @app.get("/")

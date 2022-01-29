@@ -7,7 +7,7 @@ from middlewares.files import create_preview
 from pymongo import ReturnDocument
 from bson import ObjectId
 from fastapi.responses import Response
-from middlewares.users import get_current_active_user, refresh_token
+from middlewares import users as users_middlewares
 from modules.users import User
 import config
 
@@ -20,9 +20,11 @@ router = APIRouter(
 
 
 @router.post("/upload")
-async def create_file(response: Response, current_user: User = Depends(get_current_active_user),
+async def create_file(response: Response, current_user: User = Depends(users_middlewares.get_current_active_user),
                       file: UploadFile = File(...)):
-    await refresh_token(response, current_user.id)
+    if current_user.company_id is None:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    await users_middlewares.refresh_token(response, current_user.id)
     file_read = await file.read()
     with open(f'files/{file.filename}', 'wb') as doc:
         doc.write(file_read)
@@ -35,8 +37,8 @@ async def create_file(response: Response, current_user: User = Depends(get_curre
             "size": file_size,
             "preview_path": preview_link,
             "upload_date": (datetime.datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
-            "uploaded_by": current_user.id,
-            "company_id": current_user.company_id,
+            "uploaded_by": ObjectId(current_user.id),
+            "company_id": ObjectId(current_user.company_id),
             "has_parent": False,
             "children": list(),
             "parent": None,
@@ -49,14 +51,17 @@ async def create_file(response: Response, current_user: User = Depends(get_curre
             "recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')
     }
     config.db.files.insert_one(info_dict)
-    info_dict['_id'] = str(info_dict['_id'])
+    info_dict = await users_middlewares.delete_object_ids_from_dict(info_dict)
+    print(info_dict)
     return info_dict
 
 
 @router.post("/add_info")
 async def add_file_info(data: ItemAddFileInfo, response: Response,
-                        current_user: User = Depends(get_current_active_user)):
-    await refresh_token(response, current_user.id)
+                        current_user: User = Depends(users_middlewares.get_current_active_user)):
+    if current_user.company_id is None:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    await users_middlewares.refresh_token(response, current_user.id)
     item_updated = dict()
     file_id = data.file_id
     for elem in data:
@@ -66,7 +71,7 @@ async def add_file_info(data: ItemAddFileInfo, response: Response,
     obj = config.db.files.find_one_and_update({'_id': ObjectId(file_id)},
                                               {'$set': item_updated}, return_document=ReturnDocument.AFTER)
     if obj is not None:
-        obj['_id'] = str(obj['_id'])
+        obj = await users_middlewares.delete_object_ids_from_dict(obj)
         return obj
     raise HTTPException(status_code=400, detail='No such Object_id was found')
 

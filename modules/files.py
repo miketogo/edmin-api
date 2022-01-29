@@ -26,9 +26,8 @@ class ItemAddFileInfo(BaseModel):
             raise ValueError('if field "has_parent" is true then parent field should not be empty')
         return values
 
-    @validator('parent', check_fields=False)
+    @validator('parent', allow_reuse=True)
     def check_parent_omitted(cls, value):
-        if value is not None and (len(value) != 24
-                                  or config.db.files.find_one({"_id": ObjectId(value)}) is None):
+        if len(value) != 24 or config.db.files.find_one({"_id": ObjectId(value)}) is None:
             raise ValueError('parent validation failed')
         return value

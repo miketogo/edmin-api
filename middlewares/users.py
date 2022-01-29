@@ -91,7 +91,10 @@ def get_password_hash(password):
 async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False):
     user = await check_user_email_password_in_db(email_or_phone_or_id, _id_check)
     if user is not None:
-        user["id"] = str(user["_id"])
+        if user["_id"] is not None:
+            user["id"] = str(user["_id"])
+        if user["company_id"] is not None:
+            user["company_id"] = str(user["company_id"])
         del user["_id"]
         return users_modules.UserInDB(**user)
 
@@ -165,7 +168,7 @@ async def check_user_email_password_in_db(email_or_phone_or_id: str, _id_check: 
     return None
 
 
-async def update_last_login(current_user_id, user_agent_header):
+async def update_last_login(current_user_id: str, user_agent_header: str):
     config.db.users.update_one(
                     {"_id": ObjectId(current_user_id)},
                     {
@@ -173,6 +176,14 @@ async def update_last_login(current_user_id, user_agent_header):
                             "login_info": {"date": (datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
                                            "user_agent_header": user_agent_header
                                            }
-                        }
+                        },
+                        '$set': {"recent_change": str(datetime.now().timestamp()).replace('.', '')}
                     }
                 )
+
+
+async def delete_object_ids_from_dict(the_dict: dict):
+    for elem in the_dict.keys():
+        if isinstance(the_dict[elem], ObjectId):
+            the_dict[elem] = str(the_dict[elem])
+    return the_dict
