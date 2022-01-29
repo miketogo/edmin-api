@@ -7,7 +7,6 @@ from modules import users as users_modules
 from additional_funcs import users as users_additional_funcs
 from fastapi_jwt_auth import AuthJWT
 from pydantic import BaseModel
-import json
 import config
 
 SECRET_KEY = config.SECRET_KEY
