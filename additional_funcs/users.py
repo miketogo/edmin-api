@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from bson import ObjectId
+from pymongo import ReturnDocument
 import config
 
 
@@ -27,18 +28,27 @@ async def check_user_email_password_in_db(email_or_phone_or_id: str, _id_check: 
     return None
 
 
+async def check_user_session_in_db(session_id: str):
+    if len(session_id) == 24:
+        user_obj = config.db.users.find_one({"login_info._id": ObjectId(session_id)})
+        return user_obj
+    return None
+
+
 async def update_last_login(current_user_id: str, user_agent_header: str):
-    config.db.users.update_one(
+    elem = config.db.users.find_one_and_update(
                     {"_id": ObjectId(current_user_id)},
                     {
                         '$push': {
-                            "login_info": {"date": (datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
+                            "login_info": {"_id": ObjectId(),
+                                           "date": (datetime.now()).strftime("%d.%m.%Y %H:%M:%S"),
                                            "user_agent_header": user_agent_header
                                            }
                         },
                         '$set': {"recent_change": str(datetime.now().timestamp()).replace('.', '')}
-                    }
+                    }, return_document=ReturnDocument.AFTER
                 )
+    return str(elem["login_info"][-1]["_id"])
 
 
 async def delete_object_ids_from_dict(the_dict: dict):
