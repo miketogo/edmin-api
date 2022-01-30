@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 from bson import ObjectId
 import config
-import datetime
 
 
 async def check_if_data_is_free_for_registration(email: str, phone: str):
@@ -47,12 +46,3 @@ async def delete_object_ids_from_dict(the_dict: dict):
         if isinstance(the_dict[elem], ObjectId):
             the_dict[elem] = str(the_dict[elem])
     return the_dict
-
-
-async def revoke_token(authorize):
-    exp = authorize.get_raw_jwt()['exp']
-    jti = authorize.get_raw_jwt()['jti']
-    seconds = exp - int(str(datetime.datetime.timestamp(datetime.datetime.now())).split('.')[0])
-    if seconds > 0:
-        config.redis_connection.setex(jti, seconds, 'true')
-    return authorize
