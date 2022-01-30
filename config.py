@@ -5,22 +5,39 @@ import redis
 from pydantic import BaseModel
 from datetime import timedelta
 
+load_dotenv(dotenv_path='venv/.env')
+
+
 redis_deny_list = redis.StrictRedis(host='localhost', port=6379, db=0)
 redis_refresh_tokens = redis.StrictRedis(host='localhost', port=6379, db=1)
-
-load_dotenv()
-
 
 client = MongoClient(port=27017)
 db = client.edmin
 
-AUTHJWT_SECRET_KEY = os.getenv('SECRET_KEY')
 AUTHJWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)
 AUTHJWT_REFRESH_TOKEN_EXPIRES = timedelta(days=60)
 
+AUTHJWT_PRIVATE_KEY_PATH = os.getenv('AUTHJWT_PRIVATE_KEY_PATH')
+AUTHJWT_PUBLIC_KEY_PATH = os.getenv('AUTHJWT_PUBLIC_KEY_PATH')
+AUTHJWT_ALGORITHM = os.getenv('ALGORITHM')
+
+
+try:
+    with open(AUTHJWT_PRIVATE_KEY_PATH, 'r') as file:
+        private_key = file.read()
+except FileNotFoundError:
+    raise FileNotFoundError('Could not found private key in venv, check .env')
+try:
+    with open(AUTHJWT_PUBLIC_KEY_PATH, 'r') as file:
+        public_key = file.read()
+except FileNotFoundError:
+    raise FileNotFoundError('Could not found public key in venv, check .env')
+
 
 class Settings(BaseModel):
-    authjwt_secret_key: str = AUTHJWT_SECRET_KEY
+    authjwt_algorithm: str = AUTHJWT_ALGORITHM
+    authjwt_public_key: str = public_key
+    authjwt_private_key: str = private_key
     # Configure application to store and get JWT from cookies
     authjwt_token_location: set = {"cookies"}
     # Only allow JWT cookies to be sent over https
