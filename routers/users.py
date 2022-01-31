@@ -32,7 +32,7 @@ async def signup(request: Request, user: users_modules.ItemUserSignUp,
     config.db.users.insert_one(info_dict)
     info_dict = await users_additional_funcs.delete_object_ids_from_dict(info_dict)
     session_id = await users_additional_funcs.update_last_login(info_dict['_id'], request.headers.get("user-agent"))
-    await auth_middlewares.create_tokens_on_login_or_signup(authorize, info_dict['_id'] + session_id,
+    await auth_middlewares.create_tokens_on_login_or_signup(authorize, info_dict['_id'], session_id,
                                                             request.headers.get("user-agent"))
     del info_dict['password']
     return info_dict
@@ -49,7 +49,7 @@ async def login_for_access_token(request: Request, user: users_modules.ItemUserL
             headers={"WWW-Authenticate": "Bearer"},
         )
     session_id = await users_additional_funcs.update_last_login(user.id, request.headers.get("user-agent"))
-    await auth_middlewares.create_tokens_on_login_or_signup(authorize, user.id + session_id,
+    await auth_middlewares.create_tokens_on_login_or_signup(authorize, user.id, session_id,
                                                             request.headers.get("user-agent"))
     return user
 
@@ -58,16 +58,26 @@ async def login_for_access_token(request: Request, user: users_modules.ItemUserL
 async def refresh(authorize: auth_middlewares.AuthJWT = Depends()):
     # checking if refresh token is available for refresh
     authorize.jwt_refresh_token_required()
-    await auth_middlewares.revoke_token(authorize)
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     current_user = authorize.get_jwt_subject()
+    # refresh refresh token
+    new_refresh_token = authorize.create_refresh_token(subject=current_user)
+    authorize.set_refresh_cookies(new_refresh_token)
+    jti = authorize.get_jti(new_refresh_token)
+    await additional_funcs.users.insert_jti_in_session_id(user_id=current_user[:24],
+                                                          session_id=current_user[24:],
+                                                          jti_refresh=jti)
+    # refresh access token
     new_access_token = authorize.create_access_token(subject=current_user)
-    # Set the JWT and CSRF double submit cookies in the response
     authorize.set_access_cookies(new_access_token)
+    jti = authorize.get_jti(new_access_token)
+    await additional_funcs.users.insert_jti_in_session_id(user_id=current_user[:24],
+                                                          session_id=current_user[24:],
+                                                          jti_access=jti)
     # checking if access token is available for refresh to revoke it
     try:
         authorize.jwt_required()
-        if authorize.get_jwt_subject() is not None:
-            await auth_middlewares.revoke_token(authorize)
+        await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     except Exception as e:
         print(e)
     return dict(msg="The token has been refreshed")
@@ -77,7 +87,8 @@ async def refresh(authorize: auth_middlewares.AuthJWT = Depends()):
 async def access_revoke(authorize: auth_middlewares.AuthJWT = Depends()):
     # checking if access token is available for refresh
     authorize.jwt_required()
-    await auth_middlewares.revoke_token(authorize)
+    authorize.unset_access_cookies()
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     return dict(msg="Access token has been revoke")
 
 
@@ -85,7 +96,8 @@ async def access_revoke(authorize: auth_middlewares.AuthJWT = Depends()):
 async def refresh_revoke(authorize: auth_middlewares.AuthJWT = Depends()):
     # checking if refresh token is available for refresh
     authorize.jwt_refresh_token_required()
-    await auth_middlewares.revoke_token(authorize)
+    authorize.unset_refresh_cookies()
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     return dict(msg="Refresh token has been revoke")
 
 
@@ -94,9 +106,9 @@ async def logout_and_delete_access_token(authorize: auth_middlewares.AuthJWT = D
     authorize.jwt_required()
     sub = authorize.get_jwt_subject()
     await additional_funcs.users.unset_active_session_in_db(user_id=sub[:24], session_id=sub[24:])
-    await auth_middlewares.revoke_token(authorize)
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     authorize.jwt_refresh_token_required()
-    await auth_middlewares.revoke_token(authorize)
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
     authorize.unset_jwt_cookies()
     return dict(msg="logout success")
 

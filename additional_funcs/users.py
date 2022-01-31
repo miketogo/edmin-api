@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from bson import ObjectId
 from pymongo import ReturnDocument
 import config
+import middlewares.auth
 
 
 async def check_if_data_is_free_for_registration(email: str, phone: str):
@@ -30,11 +31,8 @@ async def check_user_email_password_in_db(email_or_phone_or_id: str, _id_check: 
 
 async def check_user_session_in_db(session_id: str):
     if len(session_id) == 24:
-        user_obj = list(config.db.users.aggregate(
-            [{"$unwind": "$login_info"},
-             {"$match": {"login_info._id": ObjectId(session_id), "login_info.is_active": True}}]))
-        if len(user_obj) > 0:
-            return user_obj[0]
+        user_obj = config.db.users.find_one({"login_info._id": ObjectId(session_id)})
+        return user_obj
     return False
 
 
@@ -43,6 +41,20 @@ async def unset_active_session_in_db(user_id: str, session_id: str):
                                 "login_info._id": ObjectId(session_id)},
                                {'$set': {"login_info.$.is_active": False,
                                          "recent_change": str(datetime.now().timestamp()).replace('.', '')}})
+    session = list(config.db.users.aggregate(
+                    [{"$unwind": "$login_info"},
+                     {"$match": {"login_info._id": ObjectId(session_id)}}]))
+    if len(session) > 0:
+        await middlewares.auth.revoke_token(
+            session[0]['login_info']['jti_refresh'],
+            int(str(datetime.timestamp(
+                datetime.now() + timedelta(days=config.AUTHJWT_REFRESH_TOKEN_EXPIRES.days))).split('.')[0])
+        )
+        await middlewares.auth.revoke_token(
+            session[0]['login_info']['jti_access'],
+            int(str(datetime.timestamp(
+                datetime.now() + timedelta(seconds=config.AUTHJWT_ACCESS_TOKEN_EXPIRES.seconds))).split('.')[0])
+        )
 
 
 async def update_last_login(current_user_id: str, user_agent_header: str):
@@ -76,6 +88,24 @@ async def update_last_login(current_user_id: str, user_agent_header: str):
                 )
 
     return str(elem["login_info"][-1]["_id"])
+
+
+async def insert_jti_in_session_id(user_id: str, session_id: str,
+                                   jti_refresh: Optional[str] = None, jti_access: Optional[str] = None):
+    if jti_refresh is None and jti_access is None:
+        return None
+    elif jti_refresh is not None and jti_access is not None:
+        the_dict = {"login_info.$.jti_refresh": jti_refresh,
+                    "login_info.$.jti_access": jti_access}
+    elif jti_refresh is None:
+        the_dict = {"login_info.$.jti_access": jti_access}
+    else:
+        the_dict = {"login_info.$.jti_refresh": jti_refresh}
+
+    the_dict["recent_change"] = str(datetime.now().timestamp()).replace('.', '')
+    config.db.users.update_one({"_id": ObjectId(user_id),
+                                "login_info._id": ObjectId(session_id)},
+                               {'$set': the_dict})
 
 
 async def delete_object_ids_from_dict(the_dict: dict):
