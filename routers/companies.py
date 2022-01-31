@@ -35,3 +35,11 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
                                          "recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}})
     company_dict = await companies_additional_funcs.delete_object_ids_from_dict(company_dict)
     return company_dict
+
+
+@router.get("/check-jwt")
+async def get_company_object(authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    current_company = await companies_additional_funcs.get_company(current_user.company_id)
+    return current_company

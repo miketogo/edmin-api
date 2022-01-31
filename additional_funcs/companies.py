@@ -1,4 +1,7 @@
 from bson import ObjectId
+from fastapi import HTTPException
+
+import config
 
 
 async def delete_object_ids_from_list(the_lists: list):
@@ -42,3 +45,9 @@ async def fill_in_object_ids_dict(the_dict: dict):
             the_dict[elem] = await fill_in_object_ids_list(the_dict[elem])
     return the_dict
 
+
+async def get_company(company_id: str):
+    current_company = config.db.companies.find_one({"_id": ObjectId(company_id)})
+    if current_company is not None:
+        return await delete_object_ids_from_dict(current_company)
+    raise HTTPException(status_code=404, detail='Could not find the current_company')
