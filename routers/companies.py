@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 import config
 from middlewares import auth as auth_middlewares
 from additional_funcs import companies as companies_additional_funcs
-from modules import companies as companies_modules
+from models import companies as companies_modules
 from bson import ObjectId
 
 

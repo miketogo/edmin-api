@@ -7,7 +7,7 @@ import config
 from fastapi.requests import Request
 from middlewares import auth as auth_middlewares
 from additional_funcs import users as users_additional_funcs
-from modules import users as users_modules
+from models import users as users_modules
 
 
 router = APIRouter(

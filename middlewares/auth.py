@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from passlib.context import CryptContext
 
 import additional_funcs.users
-from modules import users as users_modules
+from models import users as users_modules
 from additional_funcs import users as users_additional_funcs
 from fastapi_jwt_auth import AuthJWT
 from datetime import datetime, timedelta

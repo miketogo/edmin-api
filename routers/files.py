@@ -2,7 +2,7 @@ import datetime
 
 from fastapi import File, APIRouter, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
-from modules.files import ItemAddFileInfo
+from models.files import ItemAddFileInfo
 from additional_funcs.files import create_preview
 from pymongo import ReturnDocument
 from bson import ObjectId
