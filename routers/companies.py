@@ -24,10 +24,14 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()
+    company_dict['divisions'] = [companies_modules.Division(name="admin").dict()]
     company_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    company_dict = await companies_additional_funcs.fill_in_object_ids_dict(company_dict)
     config.db.companies.insert_one(company_dict)
-    company_dict = await companies_additional_funcs.delete_object_ids_from_dict(company_dict)
     config.db.users.update_one({'_id': ObjectId(current_user.id)},
-                               {'$set': {'company_id': ObjectId(company_dict["_id"]),
+                               {'$set': {'company_id': company_dict["_id"],
+                                         'division_id': company_dict["divisions"][0]["division_id"],
+                                         'role_id': company_dict["divisions"][0]["available_roles"][0]["role_id"],
                                          "recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}})
+    company_dict = await companies_additional_funcs.delete_object_ids_from_dict(company_dict)
     return company_dict

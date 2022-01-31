@@ -6,52 +6,61 @@ import config
 
 
 class Permissions(BaseModel):
-    fly: Optional[bool] = False
-    walk: Optional[bool] = False
-
-
-class Divisions(BaseModel):
-    id: Optional[str]
-    name: str
-    permissions: Optional[Permissions] = Permissions()
-
-    @validator('id', allow_reuse=True)
-    def check_divisions_id_omitted(cls, value):
-        if len(value) != 24 or config.db.companies.find_one({"divisions._id": ObjectId(value)}) is None:
-            raise ValueError('available_signers._id validation failed')
-        return value
+    can_upload_files: Optional[bool] = False
+    can_download_files: Optional[bool] = False
+    can_add_filters: Optional[bool] = False
+    can_change_company_data: Optional[bool] = False
+    can_manage_employers: Optional[bool] = False
 
 
 class AvailableRoles(BaseModel):
-    id: Optional[str]
+    role_id: Optional[str]
     name: str
     permissions: Optional[Permissions] = Permissions()
 
-    @validator('id', allow_reuse=True)
+    @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
         if len(value) != 24 or config.db.companies.find_one({"available_roles._id": ObjectId(value)}) is None:
             raise ValueError('available_signers._id validation failed')
         return value
 
 
+class Division(BaseModel):
+    division_id: Optional[str]
+    name: str
+    available_roles: Optional[List[AvailableRoles]] = [AvailableRoles(
+        name="admin",
+        permissions={"can_upload_files": True,
+                     "can_download_files": True,
+                     "can_add_filters": True,
+                     "can_change_company_data": True,
+                     "can_manage_employers": True})]
+
+    @validator('division_id', allow_reuse=True)
+    def check_divisions_id_omitted(cls, value):
+        if len(value) != 24 or config.db.companies.find_one({"divisions._id": ObjectId(value)}) is None:
+            raise ValueError('division._id validation failed')
+        return value
+
+
 class ThirdParties(BaseModel):
-    id: Optional[str]
+    third_party_id: Optional[str]
     name: str
 
-    @validator('id', allow_reuse=True)
+    @validator('third_party_id', allow_reuse=True)
     def check_third_parties_id_omitted(cls, value):
         if len(value) != 24 or config.db.companies.find_one({"third_parties._id": ObjectId(value)}) is None:
-            raise ValueError('available_signers._id validation failed')
+            raise ValueError('third_parties._id validation failed')
         return value
 
 
 class AvailableSigners(BaseModel):
-    id: Optional[str]
+    available_singer_id: Optional[str]
     name: str
     surname: str
     patronymic: Optional[str] = None
 
-    @validator('id', allow_reuse=True)
+    @validator('available_singer_id', allow_reuse=True)
     def check_available_signers_id_omitted(cls, value):
         if len(value) != 24 or config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
             raise ValueError('available_signers._id validation failed')
@@ -89,8 +98,6 @@ class Subscription(BaseModel):
 class ItemCompanyCreate(BaseModel):
     name: str
     address: str
-    available_roles: Optional[List[AvailableRoles]] = list()
-    divisions: Optional[List[Divisions]] = list()
     third_parties: Optional[List[ThirdParties]] = list()
     available_signers: Optional[List[AvailableSigners]] = list()
     subscription: Optional[Subscription] = Subscription()
