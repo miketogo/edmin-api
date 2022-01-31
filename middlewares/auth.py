@@ -32,9 +32,11 @@ async def create_tokens_on_login_or_signup(authorize: AuthJWT, sub: str, user_ag
     # Create the tokens and passing to set_access_cookies or set_refresh_cookies
     access_token = authorize.create_access_token(subject=sub)
     refresh_token_ = authorize.create_refresh_token(subject=sub)
+    """
     print(authorize.get_jti(refresh_token_), authorize.get_jti(access_token))
-    """config.redis_refresh_tokens.setex(authorize.get_jti(refresh_token_),
-                                      timedelta(days=config.AUTHJWT_REFRESH_TOKEN_EXPIRES), user_agent_header)"""
+    config.redis_refresh_tokens.setex(authorize.get_jti(refresh_token_),
+                                      timedelta(days=config.AUTHJWT_REFRESH_TOKEN_EXPIRES), user_agent_header)
+    """
     # Set the JWT and CSRF double submit cookies in the response
     authorize.set_access_cookies(access_token)
     authorize.set_refresh_cookies(refresh_token_)
@@ -50,13 +52,13 @@ def get_password_hash(password):
 
 
 async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False, with_password: Optional[bool] = False):
-    user_from_session = None
+    user_from_session = True
     if _id_check:
         session_id = email_or_phone_or_id[24:]
         email_or_phone_or_id = email_or_phone_or_id[:24]
         user_from_session = await additional_funcs.users.check_user_session_in_db(session_id)
     user = await users_additional_funcs.check_user_email_password_in_db(email_or_phone_or_id, _id_check)
-    if (user_from_session is None or user_from_session == user) and user is not None:
+    if (user_from_session or user_from_session == user) and user is not None:
         if user["_id"] is not None:
             user["id"] = str(user["_id"])
         if user["company_id"] is not None:

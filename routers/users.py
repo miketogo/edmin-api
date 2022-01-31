@@ -2,6 +2,7 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 
+import additional_funcs.users
 import config
 from fastapi.requests import Request
 from middlewares import auth as auth_middlewares
@@ -62,10 +63,13 @@ async def refresh(authorize: auth_middlewares.AuthJWT = Depends()):
     new_access_token = authorize.create_access_token(subject=current_user)
     # Set the JWT and CSRF double submit cookies in the response
     authorize.set_access_cookies(new_access_token)
-    # checking if access token is available for refresh
-    authorize.jwt_optional()
-    if authorize.get_jwt_subject() is not None:
-        await auth_middlewares.revoke_token(authorize)
+    # checking if access token is available for refresh to revoke it
+    try:
+        authorize.jwt_required()
+        if authorize.get_jwt_subject() is not None:
+            await auth_middlewares.revoke_token(authorize)
+    except Exception as e:
+        print(e)
     return dict(msg="The token has been refreshed")
 
 
@@ -88,6 +92,8 @@ async def refresh_revoke(authorize: auth_middlewares.AuthJWT = Depends()):
 @router.delete("/logout")
 async def logout_and_delete_access_token(authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
+    sub = authorize.get_jwt_subject()
+    await additional_funcs.users.unset_active_session_in_db(user_id=sub[:24], session_id=sub[24:])
     await auth_middlewares.revoke_token(authorize)
     authorize.jwt_refresh_token_required()
     await auth_middlewares.revoke_token(authorize)
