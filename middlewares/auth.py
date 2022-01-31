@@ -20,7 +20,7 @@ def get_config():
 def check_if_token_in_denylist(decrypted_token):
     jti = decrypted_token['jti']
     entry = config.redis_deny_list.get(jti)
-    return entry and entry == 'true'
+    return entry and entry == b'true'
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
