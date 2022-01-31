@@ -1,33 +1,33 @@
 from typing import Optional
 from fastapi import Form
-from pydantic import BaseModel, root_validator, validator
-from bson import ObjectId
-import config
+from pydantic import BaseModel, root_validator
 
 
 class ItemAddFileInfo(BaseModel):
     file_id: str = Form(..., min_length=24, max_length=24)
-    has_parent: Optional[bool]
     children: Optional[list]
-    parent: Optional[str]
+    parent: Optional[str] = Form(None, min_length=24, max_length=24)
     status: Optional[str]
-    division: Optional[str]
-    third_party: Optional[str]
+    division: Optional[str] = Form(None, min_length=24, max_length=24)
+    third_party: Optional[str] = Form(None, min_length=24, max_length=24)
     doc_date: Optional[str]
     exp_date: Optional[str]
-    doc_type: Optional[str]
     signed_by: Optional[str]
 
     @root_validator(pre=True)
     def check_status_number_omitted(cls, values):
         if len(values) < 2:
             raise ValueError('one of the optional should be included')
-        if 'has_parent' in values and values['has_parent'] and 'parent' not in values:
-            raise ValueError('if field "has_parent" is true then parent field should not be empty')
         return values
 
-    @validator('parent', allow_reuse=True)
-    def check_parent_omitted(cls, value):
-        if len(value) != 24 or config.db.files.find_one({"_id": ObjectId(value)}) is None:
-            raise ValueError('parent validation failed')
-        return value
+
+class ItemUploadFileEmpty(object):
+    def __init__(self):
+        self.children = list()
+        self.parent = None
+        self.status = None
+        self.division = None
+        self.third_party = None
+        self.doc_date = None
+        self.exp_date = None
+        self.signed_by = None

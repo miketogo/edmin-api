@@ -21,8 +21,6 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
                          authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user is None:
-        raise HTTPException(status_code=404, detail='Could not find the current_user')
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()

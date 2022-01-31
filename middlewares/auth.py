@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from passlib.context import CryptContext
 
 import additional_funcs.users
@@ -70,6 +70,7 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False,
         if with_password:
             return users_modules.UserInDB(**user)
         return users_modules.User(**user)
+    raise HTTPException(status_code=404, detail='Could not find the current_user')
 
 
 async def authenticate_user(email_or_phone: str, password: str):

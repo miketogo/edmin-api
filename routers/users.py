@@ -117,6 +117,4 @@ async def logout_and_delete_access_token(authorize: auth_middlewares.AuthJWT = D
 async def get_user_object(authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user is None:
-        raise HTTPException(status_code=404, detail='Could not find the current_user')
     return current_user
