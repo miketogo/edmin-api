@@ -9,7 +9,6 @@ from additional_funcs import users as users_additional_funcs
 from fastapi_jwt_auth import AuthJWT
 from datetime import datetime, timedelta
 import config
-from bson import ObjectId
 
 
 @AuthJWT.load_config
