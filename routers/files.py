@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import File, APIRouter, Depends, UploadFile, HTTPException
+from fastapi import File, APIRouter, Depends, UploadFile, HTTPException, Form
 from fastapi.responses import StreamingResponse
 from models.files import ItemAddFileInfo, ItemUploadFileEmpty
 from additional_funcs.files import create_preview
@@ -71,6 +71,19 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
         obj = await files_additional_funcs.delete_object_ids_from_dict(obj)
         return obj
     raise HTTPException(status_code=400, detail='No such Object_id was found')
+
+
+@router.get("/get/{file_id}")
+async def get_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
+    file = config.db.files.find_one({"_id": ObjectId(file_id)})
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    file = await files_additional_funcs.delete_object_ids_from_dict(file)
+    return file
 
 
 @router.get("/uploads/cache/{file_name}")

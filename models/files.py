@@ -34,18 +34,21 @@ class ItemAddFileInfo(BaseModel):
 
     @validator('division_id', allow_reuse=True)
     def check_divisions_id_omitted(cls, value):
-        if config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
             raise ValueError('division._id validation failed')
         return value
 
     @validator('third_party_id', allow_reuse=True)
     def check_third_parties_id_omitted(cls, value):
-        if config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
             raise ValueError('third_parties._id validation failed')
         return value
 
     @validator('available_signer_id', allow_reuse=True)
     def check_available_signers_id_omitted(cls, value):
-        if config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
             raise ValueError('available_signers._id validation failed')
         return value

@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel, validator, root_validator
+from pydantic import BaseModel, validator, root_validator, Field
 from fastapi import Form
 from bson import ObjectId
 import datetime
@@ -14,25 +14,39 @@ class Permissions(BaseModel):
     can_manage_employers: Optional[bool] = False
 
 
-class AvailableRoles(BaseModel):
-    role_id: Optional[str] = Form(None, min_length=24, max_length=24)
+class AvailableRolesCreate(BaseModel):
     name: str
     permissions: Optional[Permissions] = Permissions()
 
+
+class AvailableRolesEdit(BaseModel):
+    role_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str]
+    permissions: Optional[Permissions]
+
     @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
-        if len(list(config.db.companies.aggregate(
+        if not ObjectId.is_valid(value) or len(list(config.db.companies.aggregate(
                 [{"$unwind": "$divisions"},
                  {"$unwind": "$divisions.available_roles"},
                  {"$match": {"divisions.available_roles.role_id": ObjectId(value)}}]))) == 1:
             raise ValueError('divisions.available_signers.role_id validation failed')
         return value
 
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('third_party_id' in values) > 0:
+            raise ValueError('one of the optional should be included')
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
 
-class Division(BaseModel):
-    division_id: Optional[str] = Form(None, min_length=24, max_length=24)
+        return values
+
+
+class DivisionCreate(BaseModel):
     name: str
-    available_roles: Optional[List[AvailableRoles]] = [AvailableRoles(
+    available_roles = [AvailableRolesCreate(
         name="admin",
         permissions={"can_upload_files": True,
                      "can_download_files": True,
@@ -40,11 +54,28 @@ class Division(BaseModel):
                      "can_change_company_data": True,
                      "can_manage_employers": True})]
 
+
+class DivisionEdit(BaseModel):
+    division_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str] = Field(nullable=False)
+    available_roles: Optional[List[AvailableRolesCreate]] = Field(nullable=False)
+
     @validator('division_id', allow_reuse=True)
     def check_divisions_id_omitted(cls, value):
-        if config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
             raise ValueError('division._id validation failed')
         return value
+
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('division_id' in values) > 0:
+            raise ValueError('one of the optional should be included')
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
+
+        return values
 
 
 class ThirdPartyCreate(BaseModel):
@@ -52,12 +83,13 @@ class ThirdPartyCreate(BaseModel):
 
 
 class ThirdPartyEdit(BaseModel):
-    third_party_id: str = Form(None, min_length=24, max_length=24)
-    name: Optional[str]
+    third_party_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str] = Field(nullable=False)
 
     @validator('third_party_id', allow_reuse=True)
     def check_third_parties_id_omitted(cls, value):
-        if config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
             raise ValueError('third_parties._id validation failed')
         return value
 
@@ -65,6 +97,10 @@ class ThirdPartyEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('third_party_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
+
         return values
 
 
@@ -75,14 +111,15 @@ class AvailableSignerCreate(BaseModel):
 
 
 class AvailableSignerEdit(BaseModel):
-    available_signer_id: str = Form(None, min_length=24, max_length=24)
-    name: Optional[str]
-    surname: Optional[str]
-    patronymic: Optional[str]
+    available_signer_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str] = Field(nullable=False)
+    surname: Optional[str] = Field(nullable=False)
+    patronymic: Optional[str] = Field(nullable=False)
+    delete_patronymic: Optional[bool] = False
 
     @validator('available_signer_id', allow_reuse=True)
     def check_available_signers_id_omitted(cls, value):
-        if config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
+        if not ObjectId.is_valid(value):
             raise ValueError('available_signers._id validation failed')
         return value
 
@@ -90,6 +127,12 @@ class AvailableSignerEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('available_signer_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
+        if ('patronymic' in values and 'delete_patronymic' in values) \
+                or ('delete_patronymic' in values and not values['delete_patronymic']):
+            raise ValueError(f"Parse 'delete_patronymic True and do not parse patronymic to delete'")
         return values
 
 

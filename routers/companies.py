@@ -25,7 +25,7 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()
-    company_dict['divisions'] = [companies_modules.Division(name="admin").dict()]
+    company_dict['divisions'] = [companies_modules.DivisionCreate(name="admin").dict()]
     company_dict['third_parties'] = list()
     company_dict['available_signers'] = list()
     company_dict['subscription'] = companies_modules.Subscription().dict()
@@ -53,9 +53,10 @@ async def create_third_party(third_party: companies_modules.ThirdPartyCreate,
         {"_id": ObjectId(current_user.company_id)},
         {
             '$push': {
-                "third_parties": {"third_party_id": ObjectId(),
-                                  "name": third_party.name
-                                  }
+                "third_parties": await companies_additional_funcs.fill_in_object_ids_dict(
+                    {"third_party_id": None,
+                     "name": third_party.name
+                     })
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
@@ -81,6 +82,106 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
          "third_parties.third_party_id": ObjectId(third_party.third_party_id)},
         {
             '$set': item_updated
+        }, return_document=ReturnDocument.AFTER)
+    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+
+
+@router.post("/create-available-signer")
+async def create_available_signer(available_signer: companies_modules.AvailableSignerCreate,
+                                  authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id)},
+        {
+            '$push': {
+                "available_signers": await companies_additional_funcs.fill_in_object_ids_dict(
+                    {"available_signer_id": None,
+                     "name": available_signer.name,
+                     "surname": available_signer.surname,
+                     "patronymic": available_signer.patronymic
+                     })
+            },
+            '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
+        }, return_document=ReturnDocument.AFTER)
+    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+
+
+@router.patch("/edit-available-signer")
+async def edit_available_signer(available_signer: companies_modules.AvailableSignerEdit,
+                                authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    item_updated = dict()
+    print(available_signer)
+    for elem in available_signer:
+        if elem[0] != 'available_signer_id':
+            item_updated['available_signers.$.' + str(elem[0])] = elem[1]
+    item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id),
+         "available_signers.available_signer_id": ObjectId(available_signer.available_signer_id)},
+        {
+            '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
+        }, return_document=ReturnDocument.AFTER)
+    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+
+
+@router.post("/create-division")
+async def create_division(division: companies_modules.DivisionCreate,
+                          authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    if division.name == "admin":
+        raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
+    available_roles = list()
+    for available_role in division.available_roles:
+        available_role["role_id"] = None
+        available_roles.append(available_role)
+    insert_item = {"division_id": None,
+                   "name": division.name,
+                   "available_roles": available_roles
+                   }
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id)},
+        {
+            '$push': {
+                "divisions": await companies_additional_funcs.fill_in_object_ids_dict(insert_item)
+            },
+            '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
+        }, return_document=ReturnDocument.AFTER)
+    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+
+
+@router.patch("/edit-division")
+async def edit_division(division: companies_modules.DivisionEdit,
+                        authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    if division.name == "admin":
+        raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
+    item_updated = dict()
+    for elem in division:
+        if elem[0] != 'division_id':
+            item_updated['divisions.$.' + str(elem[0])] = elem[1]
+    item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id),
+         "divisions.division_id": ObjectId(division.division_id)},
+        {
+            '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
         }, return_document=ReturnDocument.AFTER)
     return await companies_additional_funcs.delete_object_ids_from_dict(obj)
 
