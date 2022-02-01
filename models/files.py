@@ -7,7 +7,6 @@ from bson import ObjectId
 
 class ItemUploadFileEmpty(object):
     def __init__(self):
-        self.children = list()
         self.parent_id = None
         self.status = None
         self.division_id = None
@@ -19,7 +18,6 @@ class ItemUploadFileEmpty(object):
 
 class ItemAddFileInfo(BaseModel):
     file_id: str = Form(..., min_length=24, max_length=24)
-    children: Optional[list]
     parent_id: Optional[str] = Form(None, min_length=24, max_length=24)
     status: Optional[str]
     division_id: Optional[str] = Form(None, min_length=24, max_length=24)
