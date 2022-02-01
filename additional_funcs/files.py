@@ -2,6 +2,8 @@ from preview_generator.manager import PreviewManager
 from fastapi import HTTPException
 from bson import ObjectId
 
+import config
+
 
 async def create_preview(path_to_file):
     try:
@@ -34,3 +36,49 @@ async def delete_object_ids_from_dict(the_dict: dict):
         elif isinstance(the_dict[elem], list):
             the_dict[elem] = await delete_object_ids_from_list(the_dict[elem])
     return the_dict
+
+
+async def fill_in_object_ids_list(the_list: list):
+    for elem_id in range(len(the_list)):
+        if isinstance(the_list[elem_id], dict):
+            the_list[elem_id] = await fill_in_object_ids_dict(the_list[elem_id])
+        elif isinstance(the_list[elem_id], list):
+            the_list[elem_id] = await fill_in_object_ids_list(the_list[elem_id])
+    return the_list
+
+
+async def fill_in_object_ids_dict(the_dict: dict):
+    for elem in the_dict.keys():
+        if elem[-3:] == '_id' and not ObjectId.is_valid(the_dict[elem]):
+            the_dict[elem] = ObjectId()
+        elif elem[-3:] == '_id' and ObjectId.is_valid(the_dict[elem]):
+            the_dict[elem] = ObjectId(the_dict[elem])
+        elif isinstance(the_dict[elem], dict):
+            the_dict[elem] = await fill_in_object_ids_dict(the_dict[elem])
+        elif isinstance(the_dict[elem], list):
+            the_dict[elem] = await fill_in_object_ids_list(the_dict[elem])
+    return the_dict
+
+
+async def check_if_ids_are_connected_to_the_company(the_tuple: tuple, company_id: str):
+    if the_tuple[0] == 'parent_id':
+        obj = config.db.files.find_one({"_id": ObjectId(the_tuple[1])})
+        if obj is not None and str(obj['company_id']) == company_id:
+            return True
+    elif the_tuple[0] == 'available_signer_id':
+        obj = config.db.companies.find_one({"_id": ObjectId(company_id),
+                                            "available_signers.available_signer_id": ObjectId(the_tuple[1])})
+        if obj is not None:
+            return True
+    elif the_tuple[0] == 'division_id':
+        obj = config.db.companies.find_one({"_id": ObjectId(company_id),
+                                            "divisions.division_id": ObjectId(the_tuple[1])})
+        if obj is not None:
+            return True
+    elif the_tuple[0] == 'third_party_id':
+        obj = config.db.companies.find_one({"_id": ObjectId(company_id),
+                                            "third_parties.third_party_id": ObjectId(the_tuple[1])})
+        if obj is not None:
+            return True
+
+    raise HTTPException(status_code=400, detail='one of the ids was not found in db')

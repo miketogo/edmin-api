@@ -58,8 +58,11 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
     item_updated = dict()
     file_id = data.file_id
     for elem in data:
-        if elem[0] != 'file_id':
+        if elem[0][-3:] == '_id' and elem[0] != 'file_id' and elem[1] is not None:
+            await files_additional_funcs.check_if_ids_are_connected_to_the_company(elem, current_user.company_id)
+        if elem[0] != 'file_id' and elem[1] is not None:
             item_updated[str(elem[0])] = elem[1]
+    item_updated = await files_additional_funcs.fill_in_object_ids_dict(item_updated)
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.files.find_one_and_update({'_id': ObjectId(file_id),
                                                'company_id': ObjectId(current_user.company_id)},

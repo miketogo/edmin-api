@@ -1,5 +1,6 @@
 from typing import Optional, List
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, root_validator
+from fastapi import Form
 from bson import ObjectId
 import datetime
 import config
@@ -14,19 +15,22 @@ class Permissions(BaseModel):
 
 
 class AvailableRoles(BaseModel):
-    role_id: Optional[str]
+    role_id: Optional[str] = Form(None, min_length=24, max_length=24)
     name: str
     permissions: Optional[Permissions] = Permissions()
 
     @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
-        if len(value) != 24 or config.db.companies.find_one({"available_roles._id": ObjectId(value)}) is None:
-            raise ValueError('available_signers._id validation failed')
+        if len(list(config.db.companies.aggregate(
+                [{"$unwind": "$divisions"},
+                 {"$unwind": "$divisions.available_roles"},
+                 {"$match": {"divisions.available_roles.role_id": ObjectId(value)}}]))) == 1:
+            raise ValueError('divisions.available_signers.role_id validation failed')
         return value
 
 
 class Division(BaseModel):
-    division_id: Optional[str]
+    division_id: Optional[str] = Form(None, min_length=24, max_length=24)
     name: str
     available_roles: Optional[List[AvailableRoles]] = [AvailableRoles(
         name="admin",
@@ -38,33 +42,55 @@ class Division(BaseModel):
 
     @validator('division_id', allow_reuse=True)
     def check_divisions_id_omitted(cls, value):
-        if len(value) != 24 or config.db.companies.find_one({"divisions._id": ObjectId(value)}) is None:
+        if config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
             raise ValueError('division._id validation failed')
         return value
 
 
-class ThirdParties(BaseModel):
-    third_party_id: Optional[str]
+class ThirdPartyCreate(BaseModel):
     name: str
+
+
+class ThirdPartyEdit(BaseModel):
+    third_party_id: str = Form(None, min_length=24, max_length=24)
+    name: Optional[str]
 
     @validator('third_party_id', allow_reuse=True)
     def check_third_parties_id_omitted(cls, value):
-        if len(value) != 24 or config.db.companies.find_one({"third_parties._id": ObjectId(value)}) is None:
+        if config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
             raise ValueError('third_parties._id validation failed')
         return value
 
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('third_party_id' in values) > 0:
+            raise ValueError('one of the optional should be included')
+        return values
 
-class AvailableSigners(BaseModel):
-    available_singer_id: Optional[str]
+
+class AvailableSignerCreate(BaseModel):
     name: str
     surname: str
     patronymic: Optional[str] = None
 
-    @validator('available_singer_id', allow_reuse=True)
+
+class AvailableSignerEdit(BaseModel):
+    available_signer_id: str = Form(None, min_length=24, max_length=24)
+    name: Optional[str]
+    surname: Optional[str]
+    patronymic: Optional[str]
+
+    @validator('available_signer_id', allow_reuse=True)
     def check_available_signers_id_omitted(cls, value):
-        if len(value) != 24 or config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
+        if config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
             raise ValueError('available_signers._id validation failed')
         return value
+
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('available_signer_id' in values) > 0:
+            raise ValueError('one of the optional should be included')
+        return values
 
 
 class Subscription(BaseModel):
@@ -98,6 +124,3 @@ class Subscription(BaseModel):
 class ItemCompanyCreate(BaseModel):
     name: str
     address: str
-    third_parties: Optional[List[ThirdParties]] = list()
-    available_signers: Optional[List[AvailableSigners]] = list()
-    subscription: Optional[Subscription] = Subscription()

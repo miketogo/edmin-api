@@ -5,6 +5,9 @@ import redis
 from pydantic import BaseModel
 from datetime import timedelta
 
+server_host = 'localhost'
+port = 3000
+
 load_dotenv(dotenv_path='venv/.env')
 
 

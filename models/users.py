@@ -63,8 +63,8 @@ class User(BaseModel):
     surname: str
     fullname: str
     patronymic: Optional[str] = None
-    division: Optional[str] = None
-    role: Optional[str] = None
+    division_id: Optional[str] = None
+    role_id: Optional[str] = None
     company_id: Optional[str] = None
 
 

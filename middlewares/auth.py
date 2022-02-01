@@ -66,6 +66,10 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False,
             user["id"] = str(user["_id"])
         if user["company_id"] is not None:
             user["company_id"] = str(user["company_id"])
+        if user["division_id"] is not None:
+            user["division_id"] = str(user["division_id"])
+        if user["role_id"] is not None:
+            user["role_id"] = str(user["role_id"])
         del user["_id"]
         if with_password:
             return users_modules.UserInDB(**user)
