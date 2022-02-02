@@ -152,9 +152,15 @@ async def create_division(division: companies_modules.DivisionCreate,
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
     available_roles = list()
     for available_role in division.available_roles:
-        available_role = available_role.dict()
-        available_role["role_id"] = None
-        available_roles.append(available_role)
+        if not isinstance(available_role, tuple):
+            available_role = available_role.dict()
+            available_role["role_id"] = None
+            available_roles.append(available_role)
+        else:
+            available_role = division.available_roles.dict()
+            available_role["role_id"] = None
+            available_roles.append(available_role)
+            break
     insert_item = {"division_id": None,
                    "name": division.name,
                    "available_roles": available_roles
@@ -183,26 +189,55 @@ async def edit_division(division: companies_modules.DivisionEdit,
     if division.name == "admin":
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
     item_updated = dict()
+    array_filters = list()
+    array_filters.append(dict({"outer.division_id": ObjectId(division.division_id)}))
     for elem in division:
+        if elem[0] == 'available_roles' and elem[1] is not None:
+            for id_ in range(len(elem[1])):
+                element_available_role = elem[1][id_]
+                array_filters.append(dict({f"inner{id_}.role_id": ObjectId(element_available_role.role_id)}))
+                if element_available_role.name is not None:
+                    item_updated[f'divisions.$[outer].available_roles.$[inner{id_}].name'] = element_available_role.name
+                if element_available_role.permissions is not None:
+                    for permission in element_available_role.permissions:
+                        if permission[1] is not None:
+                            item_updated[f'divisions.$[outer].available_roles.$[inner{id_}].permissions.'
+                                         + permission[0]] = permission[1]
 
-        """print(config.db.companies.find_one_and_update(
-                {"_id": ObjectId('61f88a529dc73bf14d8647d3')},
-                {"$set": {'divisions.$[outer].available_roles.$[inner].name': 'fdfdfdfd'}},
-                array_filters=[
-                    {"outer.division_id": ObjectId('61f9d7312048ee6a85316e3d')},
-                    {"inner.role_id": ObjectId('61f9d7312048ee6a85316e3e')}
-                ]
-        ))"""
-
-        if elem[0] != 'division_id' and elem[1] is not None:
-            item_updated['divisions.$.' + str(elem[0])] = elem[1]
+        elif elem[0] != 'division_id' and elem[1] is not None:
+            item_updated['divisions.$[outer].' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
         {"_id": ObjectId(current_user.company_id),
-         "divisions.division_id": ObjectId(division.division_id),
-         "divisions.$.name": {"$ne": "admin"}},
+         "divisions.$[outer].name": {"$ne": "admin"}},
         {
             '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
+        }, array_filters=array_filters, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.post("/create-available-role")
+async def create_available_signer(available_role: companies_modules.AvailableRolesCreateWithId,
+                                  authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id),
+         "divisions.division_id": ObjectId(available_role.division_id)},
+        {
+            '$push': {
+                "divisions.$.available_roles": await companies_additional_funcs.fill_in_object_ids_dict(
+                    {"role_id": None,
+                     "name": available_role.name,
+                     "permissions": available_role.permissions
+                     })
+            },
+            '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
     if obj is not None:
         return await companies_additional_funcs.delete_object_ids_from_dict(obj)

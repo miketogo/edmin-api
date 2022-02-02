@@ -49,10 +49,12 @@ async def fill_in_object_ids_list(the_list: list):
 
 async def fill_in_object_ids_dict(the_dict: dict):
     for elem in the_dict.keys():
-        if elem[-3:] == '_id' and not ObjectId.is_valid(the_dict[elem]):
+        if elem[-3:] == '_id' and not ObjectId.is_valid(the_dict[elem]) and not isinstance(the_dict[elem], bool):
             the_dict[elem] = ObjectId()
-        elif elem[-3:] == '_id' and ObjectId.is_valid(the_dict[elem]):
+        elif elem[-3:] == '_id' and ObjectId.is_valid(the_dict[elem]) and not isinstance(the_dict[elem], bool):
             the_dict[elem] = ObjectId(the_dict[elem])
+        elif isinstance(the_dict[elem], bool) and the_dict[elem]:
+            the_dict[elem] = None
         elif isinstance(the_dict[elem], dict):
             the_dict[elem] = await fill_in_object_ids_dict(the_dict[elem])
         elif isinstance(the_dict[elem], list):

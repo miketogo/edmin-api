@@ -6,7 +6,7 @@ import datetime
 import config
 
 
-class Permissions(BaseModel):
+class CreatePermissions(BaseModel):
     can_upload_files: Optional[bool] = False
     can_download_files: Optional[bool] = False
     can_add_filters: Optional[bool] = False
@@ -14,15 +14,36 @@ class Permissions(BaseModel):
     can_manage_employers: Optional[bool] = False
 
 
+class EditPermissions(BaseModel):
+    can_upload_files: Optional[bool] = None
+    can_download_files: Optional[bool] = None
+    can_add_filters: Optional[bool] = None
+    can_change_company_data: Optional[bool] = None
+    can_manage_employers: Optional[bool] = None
+
+
 class AvailableRolesCreate(BaseModel):
     name: str
-    permissions: Optional[Permissions] = Permissions()
+    permissions: Optional[CreatePermissions] = CreatePermissions()
+
+
+class AvailableRolesCreateWithId(BaseModel):
+    division_id: str = Form(..., min_length=24, max_length=24)
+    name: str
+    permissions: Optional[CreatePermissions] = CreatePermissions()
+
+    @validator('division_id', allow_reuse=True)
+    def check_divisions_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"divisions.division_id": ObjectId(value)}) is None:
+            raise ValueError('division._id validation failed')
+        return value
 
 
 class AvailableRolesEdit(BaseModel):
     role_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str]
-    permissions: Optional[Permissions]
+    permissions: Optional[EditPermissions]
 
     @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
