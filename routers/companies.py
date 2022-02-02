@@ -94,7 +94,7 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
             if obj is not None:
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
-        if elem[0] != 'third_party_id':
+        if elem[0] != 'third_party_id' and elem[0] != 'delete_me':
             item_updated['third_parties.$.' + str(elem[0])] = elem[1]
     item_updated = await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
@@ -155,7 +155,7 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
             if obj is not None:
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
-        if elem[0] != 'available_signer_id':
+        if elem[0] != 'available_signer_id' and elem[0] != 'delete_me':
             item_updated['available_signers.$.' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
@@ -222,17 +222,15 @@ async def edit_division(division: companies_modules.DivisionEdit,
         if elem[0] == 'delete_me' and elem[1]:
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id),
-                 "divisions.division_id": ObjectId(division.division_id),
-                 'divisions.name': {"$ne": "admin"}
-                 },
+                 "divisions": {"$elemMatch": {"division_id": ObjectId(division.division_id),
+                                              "name": {"$ne": "admin"}}}},
                 {
-                    '$pull': {"divisions": {"division_id": ObjectId(division.division_id),
-                                            "name": {"$ne": "admin"}}}
+                    '$pull': {"divisions": {"division_id": ObjectId(division.division_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
-        elif elem[0] != 'division_id' and elem[1] is not None:
+        elif elem[0] != 'division_id' and elem[1] is not None and elem[0] != 'delete_me':
             item_updated['divisions.$.' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(

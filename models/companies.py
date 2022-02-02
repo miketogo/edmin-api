@@ -57,10 +57,10 @@ class AvailableRolesEdit(BaseModel):
 
     @root_validator(pre=True)
     def check_optional_amount_omitted(cls, values):
-        if not len(values) - int('third_party_id' in values) > 0:
+        if not len(values) - int('role_id' in values) - int('delete_me' in values and not values['delete_me']) > 0:
             raise ValueError('one of the optional should be included')
-        if 'delete_me' in values and not values['delete_me']:
-            raise ValueError(f"Parse 'delete_me' True and to delete'")
+        if 'delete_me' in values and values['delete_me'] and len(values) - 1 != 1:
+            raise ValueError(f"Parse just 'delete_me' True and _id for a deletion'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -93,10 +93,10 @@ class DivisionEdit(BaseModel):
 
     @root_validator(pre=True)
     def check_optional_amount_omitted(cls, values):
-        if not len(values) - int('division_id' in values) > 0:
+        if not len(values) - int('division_id' in values) - int('delete_me' in values and not values['delete_me']) > 0:
             raise ValueError('one of the optional should be included')
-        if 'delete_me' in values and not values['delete_me']:
-            raise ValueError(f"Parse 'delete_me' True and to delete'")
+        if 'delete_me' in values and values['delete_me'] and len(values) - 1 != 1:
+            raise ValueError(f"Parse just 'delete_me' True and _id for a deletion'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -122,10 +122,11 @@ class ThirdPartyEdit(BaseModel):
 
     @root_validator(pre=True)
     def check_optional_amount_omitted(cls, values):
-        if not len(values) - int('third_party_id' in values) > 0:
+        if not len(values) - int('third_party_id' in values) - \
+               int('delete_me' in values and not values['delete_me']) > 0:
             raise ValueError('one of the optional should be included')
-        if 'delete_me' in values and not values['delete_me']:
-            raise ValueError(f"Parse 'delete_me' True and to delete'")
+        if 'delete_me' in values and values['delete_me'] and len(values) - 1 != 1:
+            raise ValueError(f"Parse just 'delete_me' True and _id for a deletion'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -155,10 +156,11 @@ class AvailableSignerEdit(BaseModel):
 
     @root_validator(pre=True)
     def check_optional_amount_omitted(cls, values):
-        if not len(values) - int('available_signer_id' in values) > 0:
+        if not len(values) - int('available_signer_id' in values)\
+               - int('delete_me' in values and not values['delete_me']) > 0:
             raise ValueError('one of the optional should be included')
-        if 'delete_me' in values and not values['delete_me']:
-            raise ValueError(f"Parse 'delete_me' True and to delete'")
+        if 'delete_me' in values and values['delete_me'] and len(values) - 1 != 1:
+            raise ValueError(f"Parse just 'delete_me' True and _id for a deletion'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
