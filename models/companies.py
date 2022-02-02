@@ -26,7 +26,7 @@ class AvailableRolesEdit(BaseModel):
 
     @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
-        if not ObjectId.is_valid(value) or len(list(config.db.companies.aggregate(
+        if not ObjectId.is_valid(value) or not len(list(config.db.companies.aggregate(
                 [{"$unwind": "$divisions"},
                  {"$unwind": "$divisions.available_roles"},
                  {"$match": {"divisions.available_roles.role_id": ObjectId(value)}}]))) == 1:
@@ -46,19 +46,19 @@ class AvailableRolesEdit(BaseModel):
 
 class DivisionCreate(BaseModel):
     name: str
-    available_roles = [AvailableRolesCreate(
+    available_roles: Optional[List[AvailableRolesCreate]] = Field(AvailableRolesCreate(
         name="admin",
         permissions={"can_upload_files": True,
                      "can_download_files": True,
                      "can_add_filters": True,
                      "can_change_company_data": True,
-                     "can_manage_employers": True})]
+                     "can_manage_employers": True}), min_items=1)
 
 
 class DivisionEdit(BaseModel):
     division_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str] = Field(nullable=False)
-    available_roles: Optional[List[AvailableRolesCreate]] = Field(nullable=False)
+    available_roles: Optional[List[AvailableRolesEdit]] = Field(nullable=False)
 
     @validator('division_id', allow_reuse=True)
     def check_divisions_id_omitted(cls, value):

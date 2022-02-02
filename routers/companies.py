@@ -60,7 +60,9 @@ async def create_third_party(third_party: companies_modules.ThirdPartyCreate,
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.patch("/edit-third-party")
@@ -83,7 +85,9 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
         {
             '$set': item_updated
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.post("/create-available-signer")
@@ -107,7 +111,9 @@ async def create_available_signer(available_signer: companies_modules.AvailableS
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.patch("/edit-available-signer")
@@ -119,7 +125,6 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     item_updated = dict()
-    print(available_signer)
     for elem in available_signer:
         if elem[0] != 'available_signer_id':
             item_updated['available_signers.$.' + str(elem[0])] = elem[1]
@@ -130,7 +135,9 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
         {
             '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.post("/create-division")
@@ -145,6 +152,7 @@ async def create_division(division: companies_modules.DivisionCreate,
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
     available_roles = list()
     for available_role in division.available_roles:
+        available_role = available_role.dict()
         available_role["role_id"] = None
         available_roles.append(available_role)
     insert_item = {"division_id": None,
@@ -159,7 +167,9 @@ async def create_division(division: companies_modules.DivisionCreate,
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.patch("/edit-division")
@@ -174,16 +184,29 @@ async def edit_division(division: companies_modules.DivisionEdit,
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
     item_updated = dict()
     for elem in division:
-        if elem[0] != 'division_id':
+
+        """print(config.db.companies.find_one_and_update(
+                {"_id": ObjectId('61f88a529dc73bf14d8647d3')},
+                {"$set": {'divisions.$[outer].available_roles.$[inner].name': 'fdfdfdfd'}},
+                array_filters=[
+                    {"outer.division_id": ObjectId('61f9d7312048ee6a85316e3d')},
+                    {"inner.role_id": ObjectId('61f9d7312048ee6a85316e3e')}
+                ]
+        ))"""
+
+        if elem[0] != 'division_id' and elem[1] is not None:
             item_updated['divisions.$.' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
         {"_id": ObjectId(current_user.company_id),
-         "divisions.division_id": ObjectId(division.division_id)},
+         "divisions.division_id": ObjectId(division.division_id),
+         "divisions.$.name": {"$ne": "admin"}},
         {
             '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
         }, return_document=ReturnDocument.AFTER)
-    return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
 
 
 @router.get("/check-jwt")
