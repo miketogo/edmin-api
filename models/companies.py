@@ -82,7 +82,6 @@ class DivisionCreate(BaseModel):
 class DivisionEdit(BaseModel):
     division_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str] = Field(nullable=False)
-    available_roles: Optional[List[AvailableRolesEdit]] = Field(nullable=False)
     delete_me: Optional[bool] = False
 
     @validator('division_id', allow_reuse=True)

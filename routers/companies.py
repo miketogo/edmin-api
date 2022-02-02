@@ -25,13 +25,23 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()
-    company_dict['divisions'] = [companies_modules.DivisionCreate(name="admin").dict()]
+    company_dict['divisions'] = [companies_modules.DivisionCreate(
+        name="admin", available_roles=[dict(
+            name="admin",
+            permissions={"can_upload_files": True,
+                         "can_download_files": True,
+                         "can_add_filters": True,
+                         "can_change_company_data": True,
+                         "can_manage_employers": True})]).dict()]
+    company_dict['divisions'][0]['division_id'] = None
+    company_dict['divisions'][0]['available_roles'][0]['role_id'] = None
     company_dict['third_parties'] = list()
     company_dict['available_signers'] = list()
     company_dict['subscription'] = companies_modules.Subscription().dict()
     company_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     company_dict = await companies_additional_funcs.fill_in_object_ids_dict(company_dict)
     config.db.companies.insert_one(company_dict)
+
     config.db.users.update_one({'_id': ObjectId(current_user.id)},
                                {'$set': {'company_id': company_dict["_id"],
                                          'division_id': company_dict["divisions"][0]["division_id"],
@@ -75,7 +85,7 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
                                                     ' or does not have permissions for that action')
     item_updated = dict()
     for elem in third_party:
-        if elem[0] == 'delete_me':
+        if elem[0] == 'delete_me' and elem[1]:
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id)},
                 {
@@ -135,7 +145,7 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
                                                     ' or does not have permissions for that action')
     item_updated = dict()
     for elem in available_signer:
-        if elem[0] == 'delete_me':
+        if elem[0] == 'delete_me' and elem[1]:
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id)},
                 {
@@ -208,10 +218,8 @@ async def edit_division(division: companies_modules.DivisionEdit,
     if division.name == "admin":
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
     item_updated = dict()
-    array_filters = list()
-    array_filters.append(dict({"outer.division_id": ObjectId(division.division_id)}))
     for elem in division:
-        if elem[0] == 'delete_me':
+        if elem[0] == 'delete_me' and elem[1]:
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id),
                  "divisions.division_id": ObjectId(division.division_id),
@@ -224,27 +232,16 @@ async def edit_division(division: companies_modules.DivisionEdit,
             if obj is not None:
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
-        if elem[0] == 'available_roles' and elem[1] is not None:
-            for id_ in range(len(elem[1])):
-                element_available_role = elem[1][id_]
-                array_filters.append(dict({f"inner{id_}.role_id": ObjectId(element_available_role.role_id)}))
-                if element_available_role.name is not None:
-                    item_updated[f'divisions.$[outer].available_roles.$[inner{id_}].name'] = element_available_role.name
-                if element_available_role.permissions is not None:
-                    for permission in element_available_role.permissions:
-                        if permission[1] is not None:
-                            item_updated[f'divisions.$[outer].available_roles.$[inner{id_}].permissions.'
-                                         + permission[0]] = permission[1]
-
         elif elem[0] != 'division_id' and elem[1] is not None:
-            item_updated['divisions.$[outer].' + str(elem[0])] = elem[1]
+            item_updated['divisions.$.' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
         {"_id": ObjectId(current_user.company_id),
-         "divisions.$[outer].name": {"$ne": "admin"}},
+         "divisions.division_id": ObjectId(division.division_id),
+         "divisions.$.name": {"$ne": "admin"}},
         {
             '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
-        }, array_filters=array_filters, return_document=ReturnDocument.AFTER)
+        }, return_document=ReturnDocument.AFTER)
     if obj is not None:
         return await companies_additional_funcs.delete_object_ids_from_dict(obj)
     raise HTTPException(status_code=404, detail='Could not find an object')
@@ -263,7 +260,7 @@ async def delete_company(company_id, authorize: auth_middlewares.AuthJWT = Depen
 
 
 @router.post("/create-available-role")
-async def create_available_signer(available_role: companies_modules.AvailableRolesCreateWithId,
+async def create_available_role(available_role: companies_modules.AvailableRolesCreateWithId,
                                   authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
@@ -278,7 +275,7 @@ async def create_available_signer(available_role: companies_modules.AvailableRol
                 "divisions.$.available_roles": await companies_additional_funcs.fill_in_object_ids_dict(
                     {"role_id": None,
                      "name": available_role.name,
-                     "permissions": available_role.permissions
+                     "permissions": available_role.permissions.dict()
                      })
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
