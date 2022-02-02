@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import File, APIRouter, Depends, UploadFile, HTTPException, Form
+from fastapi import File, APIRouter, Depends, UploadFile, HTTPException
 from fastapi.responses import StreamingResponse
 from models.files import ItemAddFileInfo, ItemUploadFileEmpty
 from additional_funcs.files import create_preview

@@ -139,7 +139,8 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id)},
                 {
-                    '$pull': {"available_signers": {"available_signer_id": ObjectId(available_signer.available_signer_id)}}
+                    '$pull': {"available_signers":
+                                  {"available_signer_id": ObjectId(available_signer.available_signer_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
