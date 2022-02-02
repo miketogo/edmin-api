@@ -9,6 +9,7 @@ from bson import ObjectId
 from middlewares import auth as auth_middlewares
 from additional_funcs import files as files_additional_funcs
 import config
+import os
 
 
 router = APIRouter(
@@ -74,6 +75,24 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
         obj = await files_additional_funcs.delete_object_ids_from_dict(obj)
         return obj
     raise HTTPException(status_code=400, detail='No such Object_id was found')
+
+
+@router.delete("/delete/{file_id}")
+async def delete_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
+    file = config.db.files.find_one({"_id": ObjectId(file_id)})
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    config.db.files.remove({"_id": ObjectId(file_id)})
+    try:
+        os.remove(file['path'])
+        os.remove(file['preview_path'])
+    except FileNotFoundError as e:
+        print(e)
+    return dict(msg="The file has been deleted")
 
 
 @router.get("/get/{file_id}")

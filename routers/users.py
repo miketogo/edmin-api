@@ -80,6 +80,17 @@ async def refresh(authorize: auth_middlewares.AuthJWT = Depends()):
     return dict(msg="The token has been refreshed")
 
 
+@router.post('/fresh-jwt')
+async def create_fresh_jwt(authorize: auth_middlewares.AuthJWT = Depends()):
+    # checking if access token is available for refresh
+    authorize.jwt_required()
+    await auth_middlewares.revoke_token(authorize.get_raw_jwt()['jti'], authorize.get_raw_jwt()['exp'])
+    current_user = authorize.get_jwt_subject()
+    new_fresh_token = authorize.create_access_token(subject=current_user, fresh=True, expires_time=5)
+    authorize.set_access_cookies(new_fresh_token)
+    return dict(msg="Fresh token has been set")
+
+
 @router.delete('/access-revoke')
 async def access_revoke(authorize: auth_middlewares.AuthJWT = Depends()):
     # checking if access token is available for refresh

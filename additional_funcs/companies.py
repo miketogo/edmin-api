@@ -1,5 +1,6 @@
 from bson import ObjectId
 from fastapi import HTTPException
+import os
 
 import config
 
@@ -53,6 +54,19 @@ async def get_company(company_id: str):
     if current_company is not None:
         return await delete_object_ids_from_dict(current_company)
     raise HTTPException(status_code=404, detail='Could not find the current_company')
+
+
+async def unset_company_at_users_files(company_id: str):
+    config.db.users.update({"company_id": ObjectId(company_id)},
+                           {"$set": {"company_id": None}})
+    files = list(config.db.files.find({"company_id": ObjectId(company_id)}))
+    for file in files:
+        try:
+            os.remove(file['path'])
+            os.remove(file['preview_path'])
+        except FileNotFoundError as e:
+            print(e)
+    config.db.files.remove({"company_id": ObjectId(company_id)})
 
 
 async def get_permissions(role_id: str):

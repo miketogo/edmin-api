@@ -250,6 +250,18 @@ async def edit_division(division: companies_modules.DivisionEdit,
     raise HTTPException(status_code=404, detail='Could not find an object')
 
 
+@router.delete("/delete/{company_id}")
+async def delete_company(company_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.fresh_jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or company_id != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    config.db.files.remove({"_id": ObjectId(company_id)})
+    await companies_additional_funcs.unset_company_at_users_files(company_id)
+    config.db.companies.remove({"_id": ObjectId(company_id)})
+    return dict(msg="The company has been deleted")
+
+
 @router.post("/create-available-role")
 async def create_available_signer(available_role: companies_modules.AvailableRolesCreateWithId,
                                   authorize: auth_middlewares.AuthJWT = Depends()):
