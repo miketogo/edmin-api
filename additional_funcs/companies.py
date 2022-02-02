@@ -58,7 +58,9 @@ async def get_company(company_id: str):
 
 async def unset_company_at_users_files(company_id: str):
     config.db.users.update({"company_id": ObjectId(company_id)},
-                           {"$set": {"company_id": None}})
+                           {"$set": {"company_id": None,
+                                     "division_id": None,
+                                     "role_id": None}})
     files = list(config.db.files.find({"company_id": ObjectId(company_id)}))
     for file in files:
         try:
