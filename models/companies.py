@@ -44,6 +44,7 @@ class AvailableRolesEdit(BaseModel):
     role_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str]
     permissions: Optional[EditPermissions]
+    delete_me: Optional[bool] = False
 
     @validator('role_id', allow_reuse=True)
     def check_available_roles_id_omitted(cls, value):
@@ -58,6 +59,8 @@ class AvailableRolesEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('third_party_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        if 'delete_me' in values and not values['delete_me']:
+            raise ValueError(f"Parse 'delete_me' True and to delete'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -80,6 +83,7 @@ class DivisionEdit(BaseModel):
     division_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str] = Field(nullable=False)
     available_roles: Optional[List[AvailableRolesEdit]] = Field(nullable=False)
+    delete_me: Optional[bool] = False
 
     @validator('division_id', allow_reuse=True)
     def check_divisions_id_omitted(cls, value):
@@ -92,6 +96,8 @@ class DivisionEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('division_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        if 'delete_me' in values and not values['delete_me']:
+            raise ValueError(f"Parse 'delete_me' True and to delete'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -106,6 +112,7 @@ class ThirdPartyCreate(BaseModel):
 class ThirdPartyEdit(BaseModel):
     third_party_id: str = Form(..., min_length=24, max_length=24)
     name: Optional[str] = Field(nullable=False)
+    delete_me: Optional[bool] = False
 
     @validator('third_party_id', allow_reuse=True)
     def check_third_parties_id_omitted(cls, value):
@@ -118,6 +125,8 @@ class ThirdPartyEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('third_party_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        if 'delete_me' in values and not values['delete_me']:
+            raise ValueError(f"Parse 'delete_me' True and to delete'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
@@ -137,6 +146,7 @@ class AvailableSignerEdit(BaseModel):
     surname: Optional[str] = Field(nullable=False)
     patronymic: Optional[str] = Field(nullable=False)
     delete_patronymic: Optional[bool] = False
+    delete_me: Optional[bool] = False
 
     @validator('available_signer_id', allow_reuse=True)
     def check_available_signers_id_omitted(cls, value):
@@ -148,12 +158,14 @@ class AvailableSignerEdit(BaseModel):
     def check_optional_amount_omitted(cls, values):
         if not len(values) - int('available_signer_id' in values) > 0:
             raise ValueError('one of the optional should be included')
+        if 'delete_me' in values and not values['delete_me']:
+            raise ValueError(f"Parse 'delete_me' True and to delete'")
         for v in values.keys():
             if values[v] is None:
                 raise ValueError(f"Field '{v}' must not be None")
         if ('patronymic' in values and 'delete_patronymic' in values) \
                 or ('delete_patronymic' in values and not values['delete_patronymic']):
-            raise ValueError(f"Parse 'delete_patronymic True and do not parse patronymic to delete'")
+            raise ValueError(f"Parse 'delete_patronymic' True and do not parse patronymic to delete'")
         return values
 
 

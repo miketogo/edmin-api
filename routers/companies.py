@@ -75,6 +75,15 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
                                                     ' or does not have permissions for that action')
     item_updated = dict()
     for elem in third_party:
+        if elem[0] == 'delete_me':
+            obj = config.db.companies.find_one_and_update(
+                {"_id": ObjectId(current_user.company_id)},
+                {
+                    '$pull': {"third_parties": {"third_party_id": ObjectId(third_party.third_party_id)}}
+                }, return_document=ReturnDocument.AFTER)
+            if obj is not None:
+                return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+            raise HTTPException(status_code=404, detail='Could not find an object')
         if elem[0] != 'third_party_id':
             item_updated['third_parties.$.' + str(elem[0])] = elem[1]
     item_updated = await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
@@ -126,6 +135,15 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
                                                     ' or does not have permissions for that action')
     item_updated = dict()
     for elem in available_signer:
+        if elem[0] == 'delete_me':
+            obj = config.db.companies.find_one_and_update(
+                {"_id": ObjectId(current_user.company_id)},
+                {
+                    '$pull': {"available_signers": {"available_signer_id": ObjectId(available_signer.available_signer_id)}}
+                }, return_document=ReturnDocument.AFTER)
+            if obj is not None:
+                return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+            raise HTTPException(status_code=404, detail='Could not find an object')
         if elem[0] != 'available_signer_id':
             item_updated['available_signers.$.' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
@@ -192,6 +210,19 @@ async def edit_division(division: companies_modules.DivisionEdit,
     array_filters = list()
     array_filters.append(dict({"outer.division_id": ObjectId(division.division_id)}))
     for elem in division:
+        if elem[0] == 'delete_me':
+            obj = config.db.companies.find_one_and_update(
+                {"_id": ObjectId(current_user.company_id),
+                 "divisions.division_id": ObjectId(division.division_id),
+                 'divisions.name': {"$ne": "admin"}
+                 },
+                {
+                    '$pull': {"divisions": {"division_id": ObjectId(division.division_id),
+                                            "name": {"$ne": "admin"}}}
+                }, return_document=ReturnDocument.AFTER)
+            if obj is not None:
+                return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+            raise HTTPException(status_code=404, detail='Could not find an object')
         if elem[0] == 'available_roles' and elem[1] is not None:
             for id_ in range(len(elem[1])):
                 element_available_role = elem[1][id_]
