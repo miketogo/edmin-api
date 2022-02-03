@@ -259,7 +259,7 @@ async def delete_company(company_id, authorize: auth_middlewares.AuthJWT = Depen
 
 @router.post("/create-available-role")
 async def create_available_role(available_role: companies_modules.AvailableRolesCreateWithId,
-                                  authorize: auth_middlewares.AuthJWT = Depends()):
+                                authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
     if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
@@ -278,6 +278,50 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
         }, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.post("/edit-available-role")
+async def create_available_role(available_role: companies_modules.AvailableRolesEdit,
+                                authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    available_role_obj = list(config.db.companies.aggregate(
+                [{"$unwind": "$divisions"},
+                 {"$unwind": "$divisions.available_roles"},
+                 {"$match": {"divisions.available_roles.role_id": ObjectId(available_role.role_id)}}]))[0]
+    print(available_role_obj)
+    if available_role_obj['divisions']['name'] == "admin" \
+            or available_role_obj['divisions']['available_roles']['name'] == "admin":
+        raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
+    item_updated = dict()
+    array_filters = [{'outer.division_id': available_role_obj['divisions']['division_id']},
+                     {"inner.role_id": ObjectId(available_role.role_id)}]
+    for elem in available_role:
+        if elem[0] == 'delete_me' and elem[1]:
+            obj = config.db.companies.find_one_and_update(
+                {"_id": ObjectId(current_user.company_id),
+                 "divisions": {"$elemMatch": {"division_id": available_role_obj['divisions']['division_id'],
+                                              "name": {"$ne": "admin"}}}},
+                {
+                    '$pull': {"divisions": {"available_roles": {"role_id": ObjectId(available_role.role_id)}}}
+                }, return_document=ReturnDocument.AFTER)
+            if obj is not None:
+                return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+            raise HTTPException(status_code=404, detail='Could not find an object')
+        elif elem[0] != 'role_id' and elem[1] is not None and elem[0] != 'delete_me':
+            item_updated['divisions.$[outer].available_roles.$[inner].' + str(elem[0])] = elem[1]
+    item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id)},
+        {
+            '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
+        }, array_filters=array_filters, return_document=ReturnDocument.AFTER)
     if obj is not None:
         return await companies_additional_funcs.delete_object_ids_from_dict(obj)
     raise HTTPException(status_code=404, detail='Could not find an object')
