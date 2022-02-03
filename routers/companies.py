@@ -295,7 +295,6 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
                 [{"$unwind": "$divisions"},
                  {"$unwind": "$divisions.available_roles"},
                  {"$match": {"divisions.available_roles.role_id": ObjectId(available_role.role_id)}}]))[0]
-    print(available_role_obj)
     if available_role_obj['divisions']['name'] == "admin" \
             or available_role_obj['divisions']['available_roles']['name'] == "admin":
         raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
