@@ -67,10 +67,11 @@ async def fill_in_object_ids_dict(the_dict: dict):
     return the_dict
 
 
-async def check_if_ids_are_connected_to_the_company(the_tuple: tuple, company_id: str):
-    if the_tuple[0] == 'parent_id':
+async def check_if_ids_are_connected_to_the_company(the_tuple: tuple, company_id: str, base_file_id: str):
+    if the_tuple[0] == 'parent_id' and the_tuple[1] != base_file_id:
         obj = config.db.files.find_one({"_id": ObjectId(the_tuple[1])})
-        if obj is not None and str(obj['company_id']) == company_id:
+        if obj is not None and str(obj['company_id']) == company_id \
+                and (obj['parent_id'] is None or str(obj['parent_id']) != base_file_id):
             return True
     elif the_tuple[0] == 'available_signer_id':
         obj = config.db.companies.find_one({"_id": ObjectId(company_id),

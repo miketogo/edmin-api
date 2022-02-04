@@ -14,6 +14,8 @@ base_doc_types = ['Proposals', 'Contracts', 'Invoices']
 
 full_save_preview_file_path = r'C:\Users\aleks\PycharmProjects\pythonProject8\cache'
 
+content_to_response = ['_id', 'preview_path', 'name']
+
 
 redis_deny_list = redis.StrictRedis(host='localhost', port=6379, db=0)
 redis_refresh_tokens = redis.StrictRedis(host='localhost', port=6379, db=1)
