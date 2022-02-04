@@ -10,6 +10,8 @@ port = 3000
 
 load_dotenv(dotenv_path='venv/.env')
 
+base_doc_types = ['Proposals', 'Contracts', 'Invoices']
+
 
 redis_deny_list = redis.StrictRedis(host='localhost', port=6379, db=0)
 redis_refresh_tokens = redis.StrictRedis(host='localhost', port=6379, db=1)

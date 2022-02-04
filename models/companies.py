@@ -134,6 +134,78 @@ class ThirdPartyEdit(BaseModel):
         return values
 
 
+class ThirdPartyFolderCreate(BaseModel):
+    third_party_id: str = Form(..., min_length=24, max_length=24)
+    name: str
+
+    @validator('third_party_id', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"third_parties.third_party_id": ObjectId(value)}) is None:
+            raise ValueError('third_parties._id validation failed')
+        return value
+
+
+class ThirdPartyFolderEdit(BaseModel):
+    third_party_folder_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str] = Field(nullable=False)
+    delete_me: Optional[bool] = False
+
+    @validator('third_party_folder_id', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) or not len(list(config.db.companies.aggregate(
+                [{"$unwind": "$third_parties"},
+                 {"$unwind": "$third_parties.folders"},
+                 {"$match": {"third_parties.folders.third_party_folder_id": ObjectId(value)}}]))) == 1:
+            raise ValueError('third_parties._id validation failed')
+        return value
+
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('third_party_folder_id' in values) - \
+               int('delete_me' in values and not values['delete_me']) > 0:
+            raise ValueError('one of the optional should be included')
+        if 'delete_me' in values and values['delete_me'] and len(values) - 1 != 1:
+            raise ValueError(f"Parse just 'delete_me' True and _id for a deletion'")
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
+
+        return values
+
+
+class DocTypeCreate(BaseModel):
+    name: str
+
+    @validator('name', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if value.lower() in [elem.lower() for elem in config.base_doc_types]:
+            raise ValueError('name validation failed')
+        return value
+
+
+class DocTypeEdit(BaseModel):
+    doc_type_id: str = Form(..., min_length=24, max_length=24)
+    name: Optional[str] = Field(nullable=False)
+
+    @validator('doc_type_id', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"doc_types.doc_type_id": ObjectId(value)}) is None:
+            raise ValueError('third_parties._id validation failed')
+        return value
+
+    @root_validator(pre=True)
+    def check_optional_amount_omitted(cls, values):
+        if not len(values) - int('doc_type_id' in values) > 0:
+            raise ValueError('one of the optional should be included')
+        for v in values.keys():
+            if values[v] is None:
+                raise ValueError(f"Field '{v}' must not be None")
+
+        return values
+
+
 class AvailableSignerCreate(BaseModel):
     name: str
     surname: str

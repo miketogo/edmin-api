@@ -58,6 +58,24 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
         raise HTTPException(status_code=400, detail="No company is attached")
     item_updated = dict()
     file_id = data.file_id
+
+    if data.third_party_folder_id is not None and data.third_party_id is None:
+        file = config.db.files.find_one({'_id': ObjectId(file_id),
+                                         'company_id': ObjectId(current_user.company_id)})
+        if file is None or file['third_party_id'] is None:
+            raise HTTPException(status_code=400, detail='Attempt to set folder id to the file without third_party')
+    elif data.third_party_folder_id is not None and data.third_party_id is not None:
+        obj = config.db.companies.find_one({'_id': ObjectId(current_user.company_id),
+                                            "third_parties": {
+                                                "$elemMatch": {
+                                                    "third_party_id": ObjectId(data.third_party_id),
+                                                    "folders": {
+                                                        "$elemMatch": {
+                                                            "third_party_folder_id":
+                                                                ObjectId(data.third_party_folder_id)}}}}})
+        if obj is None:
+            raise HTTPException(status_code=400, detail='Folder id not attached to company third_party')
+
     for elem in data:
         if elem[0][-3:] == '_id' and elem[0] != 'file_id' and elem[1] is not None and elem[0][:6] != 'delete'\
                 and file_id != elem[1]:
@@ -72,6 +90,11 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
                                                'company_id': ObjectId(current_user.company_id)},
                                               {'$set': item_updated}, return_document=ReturnDocument.AFTER)
     if obj is not None:
+        if data.delete_third_party_id or (data.third_party_id is not None and data.third_party_folder_id is None):
+            obj = config.db.files.find_one_and_update({'_id': ObjectId(file_id),
+                                                       'company_id': ObjectId(current_user.company_id)},
+                                                      {'$set': {"third_party_folder_id": None}},
+                                                      return_document=ReturnDocument.AFTER)
         obj = await files_additional_funcs.delete_object_ids_from_dict(obj)
         return obj
     raise HTTPException(status_code=400, detail='No such Object_id was found')

@@ -14,6 +14,8 @@ class ItemUploadFileEmpty(object):
         self.doc_date = None
         self.exp_date = None
         self.available_signer_id = None
+        self.third_party_folder_id = None
+        self.doc_type_id = None
 
 
 class ItemAddFileInfo(BaseModel):
@@ -25,7 +27,11 @@ class ItemAddFileInfo(BaseModel):
     doc_date: Optional[str]
     exp_date: Optional[str]
     available_signer_id: Optional[str] = Form(None, min_length=24, max_length=24)
+    third_party_folder_id: Optional[str] = Form(None, min_length=24, max_length=24)
+    doc_type_id: Optional[str] = Form(None, min_length=24, max_length=24)
+    delete_doc_type_id: Optional[bool] = False
     delete_third_party_id: Optional[bool] = False
+    delete_third_party_folder_id: Optional[bool] = False
     delete_division_id: Optional[bool] = False
     delete_parent_id: Optional[bool] = False
     delete_available_signer_id: Optional[bool] = False
@@ -50,6 +56,17 @@ class ItemAddFileInfo(BaseModel):
         if ('third_party_id' in values and 'delete_third_party_id' in values) \
                 or ('delete_third_party_id' in values and not values['delete_third_party_id']):
             raise ValueError(f"Parse 'delete_third_party_id' True and do not parse third_party_id to delete'")
+
+        if ('third_party_folder_id' in values and 'delete_third_party_folder_id' in values) \
+                or ('delete_third_party_folder_id' in values and not values['delete_third_party_folder_id']):
+            raise ValueError(f"Parse 'delete_third_party_folder_id' True and do not parse "
+                             f"third_party_folder_id to delete'")
+
+        if ('doc_type_id' in values and 'delete_doc_type_id' in values) \
+                or ('delete_doc_type_id' in values and not values['delete_doc_type_id']):
+            raise ValueError(f"Parse 'delete_doc_type_id' True and do not parse "
+                             f"doc_type_id to delete'")
+
         return values
 
     @validator('division_id', allow_reuse=True)
@@ -71,4 +88,20 @@ class ItemAddFileInfo(BaseModel):
         if not ObjectId.is_valid(value) \
                 or config.db.companies.find_one({"available_signers._id": ObjectId(value)}) is None:
             raise ValueError('available_signers._id validation failed')
+        return value
+
+    @validator('third_party_folder_id', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) or not len(list(config.db.companies.aggregate(
+                [{"$unwind": "$third_parties"},
+                 {"$unwind": "$third_parties.folders"},
+                 {"$match": {"third_parties.folders.third_party_folder_id": ObjectId(value)}}]))) == 1:
+            raise ValueError('third_parties._id validation failed')
+        return value
+
+    @validator('doc_type_id', allow_reuse=True)
+    def check_third_parties_id_omitted(cls, value):
+        if not ObjectId.is_valid(value) \
+                or config.db.companies.find_one({"doc_types.doc_type_id": ObjectId(value)}) is None:
+            raise ValueError('third_parties._id validation failed')
         return value

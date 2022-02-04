@@ -83,4 +83,18 @@ async def check_if_ids_are_connected_to_the_company(the_tuple: tuple, company_id
         if obj is not None:
             return True
 
+    elif the_tuple[0] == 'third_party_folder_id':
+        obj = list(config.db.companies.aggregate(
+                [{"$unwind": "$third_parties"},
+                 {"$unwind": "$third_parties.folders"},
+                 {"$match": {"third_parties.folders.third_party_folder_id": ObjectId(the_tuple[1])}}]))
+        if len(obj) != 0:
+            return True
+
+    elif the_tuple[0] == 'doc_type_id':
+        obj = config.db.companies.find_one({"_id": ObjectId(company_id),
+                                            "doc_types.doc_type_id": ObjectId(the_tuple[1])})
+        if obj is not None:
+            return True
+
     raise HTTPException(status_code=400, detail='one of the ids was not found in db')

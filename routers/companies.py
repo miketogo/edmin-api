@@ -25,6 +25,12 @@ async def create_company(company: companies_modules.ItemCompanyCreate,
     if current_user.company_id is not None:
         raise HTTPException(status_code=400, detail='Company is already attached to the user')
     company_dict = company.dict()
+    company_list_doc_types = list()
+    for doc_type_name in config.base_doc_types:
+        doc_type_obj = companies_modules.DocTypeCreate(name=doc_type_name).dict()
+        doc_type_obj['doc_type_id'] = None
+        company_list_doc_types.append(doc_type_obj)
+    company_dict['doc_types'] = company_list_doc_types
     company_dict['divisions'] = [companies_modules.DivisionCreate(
         name="admin", available_roles=[dict(
             name="admin",
@@ -65,7 +71,8 @@ async def create_third_party(third_party: companies_modules.ThirdPartyCreate,
             '$push': {
                 "third_parties": await companies_additional_funcs.fill_in_object_ids_dict(
                     {"third_party_id": None,
-                     "name": third_party.name
+                     "name": third_party.name,
+                     "folders": list()
                      })
             },
             '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
@@ -315,6 +322,124 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
             raise HTTPException(status_code=404, detail='Could not find an object')
         elif elem[0] != 'role_id' and elem[1] is not None and elem[0] != 'delete_me':
             item_updated['divisions.$[outer].available_roles.$[inner].' + str(elem[0])] = elem[1]
+    item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id)},
+        {
+            '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
+        }, array_filters=array_filters, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.post("/create-doc-type")
+async def create_doc_type(doc_type: companies_modules.DocTypeCreate,
+                          authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id)},
+        {
+            '$push': {
+                "doc_types": await companies_additional_funcs.fill_in_object_ids_dict(
+                    {"doc_type_id": None,
+                     "name": doc_type.name
+                     })
+            },
+            '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
+        }, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.patch("/edit-doc-type")
+async def edit_doc_type(doc_type: companies_modules.DocTypeEdit,
+                        authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    item_updated = dict()
+    for elem in doc_type:
+        if elem[0] != 'doc_type_id':
+            item_updated['doc_types.$.' + str(elem[0])] = elem[1]
+    item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id),
+         "doc_types": {"$elemMatch": {"doc_type_id": ObjectId(doc_type.doc_type_id),
+                                      "name": {"$nin": config.base_doc_types}}}},
+        {
+            '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
+        }, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.post("/create-third-party-folder")
+async def create_third_party_folder(third_party_folder: companies_modules.ThirdPartyFolderCreate,
+                                    authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    obj = config.db.companies.find_one_and_update(
+        {"_id": ObjectId(current_user.company_id),
+         "third_parties.third_party_id": ObjectId(third_party_folder.third_party_id)},
+        {
+            '$push': {
+                "third_parties.$.folders": await companies_additional_funcs.fill_in_object_ids_dict(
+                    {"third_party_folder_id": None,
+                     "name": third_party_folder.name
+                     })
+            },
+            '$set': {"recent_change": str(datetime.datetime.now().timestamp()).replace('.', '')}
+        }, return_document=ReturnDocument.AFTER)
+    if obj is not None:
+        return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+    raise HTTPException(status_code=404, detail='Could not find an object')
+
+
+@router.post("/edit-third-party-folder")
+async def edit_third_party_folder(third_party_folder: companies_modules.ThirdPartyFolderEdit,
+                                  authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or not await companies_additional_funcs.get_permissions(current_user.role_id):
+        raise HTTPException(status_code=400, detail='Company is not attached to the user'
+                                                    ' or does not have permissions for that action')
+    available_role_obj = list(config.db.companies.aggregate(
+                [{"$unwind": "$third_parties"},
+                 {"$unwind": "$third_parties.folders"},
+                 {"$match": {"third_parties.folders.third_party_folder_id":
+                             ObjectId(third_party_folder.third_party_folder_id)}}]))[0]
+    item_updated = dict()
+    array_filters = [{'outer.third_party_id': available_role_obj['third_parties']['third_party_id']},
+                     {"inner.third_party_folder_id": ObjectId(third_party_folder.third_party_folder_id)}]
+    for elem in third_party_folder:
+        if elem[0] == 'delete_me' and elem[1]:
+            obj = config.db.companies.find_one_and_update(
+                {"_id": ObjectId(current_user.company_id),
+                 "third_parties": {"$elemMatch": {"third_party_id":
+                                                  available_role_obj['third_parties']['third_party_id']}}},
+                {
+                    '$pull': {"third_parties": {"folders": {"third_party_folder_id":
+                                                            ObjectId(third_party_folder.third_party_folder_id)}}}
+                }, return_document=ReturnDocument.AFTER)
+            if obj is not None:
+                config.db.files.update({"third_party_folder_id": ObjectId(third_party_folder.third_party_folder_id),
+                                        "$set": {"third_party_folder_id": None}})
+                return await companies_additional_funcs.delete_object_ids_from_dict(obj)
+            raise HTTPException(status_code=404, detail='Could not find an object')
+        elif elem[0] != 'third_party_folder_id' and elem[1] is not None and elem[0] != 'delete_me':
+            item_updated['third_parties.$[outer].folders.$[inner].' + str(elem[0])] = elem[1]
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
         {"_id": ObjectId(current_user.company_id)},
