@@ -78,8 +78,7 @@ async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJ
             raise HTTPException(status_code=400, detail='Folder id not attached to company third_party')
 
     for elem in data:
-        if elem[0][-3:] == '_id' and elem[0] != 'file_id' and elem[1] is not None and elem[0][:6] != 'delete'\
-                and file_id != elem[1]:
+        if elem[0][-3:] == '_id' and elem[0] != 'file_id' and elem[1] is not None and elem[0][:6] != 'delete':
             await files_additional_funcs.check_if_ids_are_connected_to_the_company(elem, current_user.company_id)
         if elem[0] != 'file_id' and elem[1] is not None and elem[0][:6] != 'delete':
             item_updated[str(elem[0])] = elem[1]
@@ -119,7 +118,7 @@ async def delete_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
     return dict(msg="The file has been deleted")
 
 
-@router.get("/get/{file_id}")
+@router.get("/get-file/{file_id}")
 async def get_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     if not ObjectId.is_valid(file_id):
@@ -130,6 +129,112 @@ async def get_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
         raise HTTPException(status_code=400, detail="No company is attached")
     file = await files_additional_funcs.delete_object_ids_from_dict(file)
     return file
+
+
+@router.get("/get-by-third-party/{third_party_id}")
+async def get_file(third_party_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    if not ObjectId.is_valid(third_party_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
+    company = list(config.db.companies.aggregate([{"$unwind": "$third_parties"},
+                                                  {"$match": {
+                                                      "third_parties.third_party_id": ObjectId(third_party_id)}}]))
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or len(company) != 1 or str(company[0]['_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    company = company[0]
+
+    files_not_in_folders = config.db.files.find({
+            'third_party_id': ObjectId(third_party_id),
+            'third_party_folder_id': None})
+    files_with_doc_types = dict()
+    files_without_doc_types = list()
+    for file in files_not_in_folders:
+        if file['doc_type_id'] not in files_with_doc_types.keys() and file['doc_type_id'] is not None:
+            files_with_doc_types[str(file['doc_type_id'])] = list()
+            files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+        elif file['doc_type_id'] is not None:
+            files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+        else:
+            files_without_doc_types.append(file["_id"])
+    files_not_in_folders = dict()
+    files_not_in_folders['without_doc_type'] = files_without_doc_types
+    files_not_in_folders['with_doc_type'] = files_with_doc_types
+
+    files_in_folders = dict()
+    folders = company['third_parties']['folders']
+    for folder in folders:
+        third_party_folder_id = ObjectId(folder['third_party_folder_id'])
+        files = config.db.files.find({'third_party_folder_id': third_party_folder_id})
+        files_with_doc_types = dict()
+        files_without_doc_types = list()
+        for file in files:
+            if file['doc_type_id'] not in files_with_doc_types.keys() and file['doc_type_id'] is not None:
+                files_with_doc_types[str(file['doc_type_id'])] = list()
+                files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+            elif file['doc_type_id'] is not None:
+                files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+            else:
+                files_without_doc_types.append(file["_id"])
+        files_in_folders[str(third_party_folder_id)] = dict()
+        files_in_folders[str(third_party_folder_id)]['without_doc_type'] = files_without_doc_types
+        files_in_folders[str(third_party_folder_id)]['with_doc_type'] = files_with_doc_types
+
+    dict_to_return = dict()
+    dict_to_return['files_not_in_folders'] = files_not_in_folders
+    dict_to_return['files_in_folders'] = files_in_folders
+    dict_to_return = await files_additional_funcs.delete_object_ids_from_dict(dict_to_return)
+    return dict_to_return
+
+
+@router.get("/get-by-third-party-folder-id/{third_party_folder_id}")
+async def get_file(third_party_folder_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    if not ObjectId.is_valid(third_party_folder_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
+    company = list(config.db.companies.aggregate(
+        [{"$unwind": "$third_parties"},
+         {"$unwind": "$third_parties.folders"},
+         {"$match": {"third_parties.folders.third_party_folder_id": ObjectId(third_party_folder_id)}}]))
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or len(company) != 1 or str(company[0]['_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+
+    files_in_folder = config.db.files.find({
+            'third_party_folder_id': ObjectId(third_party_folder_id)})
+    files_with_doc_types = dict()
+    files_without_doc_types = list()
+    for file in files_in_folder:
+        if file['doc_type_id'] not in files_with_doc_types.keys() and file['doc_type_id'] is not None:
+            files_with_doc_types[str(file['doc_type_id'])] = list()
+            files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+        elif file['doc_type_id'] is not None:
+            files_with_doc_types[str(file['doc_type_id'])].append(file['_id'])
+        else:
+            files_without_doc_types.append(file["_id"])
+    files_in_folder = dict()
+    files_in_folder['without_doc_type'] = files_without_doc_types
+    files_in_folder['with_doc_type'] = files_with_doc_types
+
+    dict_to_return = dict()
+    dict_to_return['files_in_folders'] = files_in_folder
+    dict_to_return = await files_additional_funcs.delete_object_ids_from_dict(dict_to_return)
+    return dict_to_return
+
+
+@router.get("/get-file-history/{file_id}")
+async def get_file_history(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
+    file = config.db.files.find_one({"_id": ObjectId(file_id)})
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    history_list = list()
+    history_list.append(file)
+    file_history = await files_additional_funcs.search_for_parents(str(file['parent_id']), history_list)
+    return await files_additional_funcs.delete_object_ids_from_list(file_history)
 
 
 @router.get("/uploads/cache/{file_id}")

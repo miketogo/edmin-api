@@ -103,3 +103,11 @@ async def check_if_ids_are_connected_to_the_company(the_tuple: tuple, company_id
             return True
 
     raise HTTPException(status_code=400, detail='one of the ids was not found in db')
+
+
+async def search_for_parents(parent_file_id: str, history_list: list):
+    obj = config.db.files.find_one({'_id': ObjectId(parent_file_id)})
+    if obj is not None:
+        history_list.append(obj)
+        return await search_for_parents(obj['parent_id'], history_list)
+    return history_list
