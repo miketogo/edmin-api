@@ -1,16 +1,21 @@
 from preview_generator.manager import PreviewManager
 from fastapi import HTTPException
 from bson import ObjectId
+from shutil import move, rmtree
 
 import config
 
 
 async def create_preview(path_to_file):
     try:
-        save_path = 'cache'
-        manager = PreviewManager(save_path, create_folder=True)
+        save_path_aka_object_id = str(ObjectId())
+        manager = PreviewManager(save_path_aka_object_id, create_folder=True)
         path_to_preview_image = manager.get_jpeg_preview(path_to_file, page=0, height=1920, width=1920)
-        return path_to_preview_image
+        new_path_to_preview_image_name = \
+            rf'{save_path_aka_object_id}.{path_to_preview_image.split("/")[-1].split(".")[-1]}'
+        move(path_to_preview_image, config.full_save_preview_file_path + '/' + new_path_to_preview_image_name)
+        rmtree(save_path_aka_object_id, ignore_errors=True)
+        return f'cache/{new_path_to_preview_image_name}', save_path_aka_object_id
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail='Could not make a preview')

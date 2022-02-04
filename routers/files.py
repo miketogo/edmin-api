@@ -1,7 +1,7 @@
 import datetime
 
 from fastapi import File, APIRouter, Depends, UploadFile, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from models.files import ItemAddFileInfo, ItemUploadFileEmpty
 from additional_funcs.files import create_preview
 from pymongo import ReturnDocument
@@ -30,10 +30,11 @@ async def create_file(authorize: auth_middlewares.AuthJWT = Depends(),
     with open(f'files/{file.filename}', 'wb') as doc:
         doc.write(file_read)
         file_size = len(file_read)
-    preview_link = await create_preview(f'files/{file.filename}')
+    preview_link, file_object_id = await create_preview(f'files/{file.filename}')
+    os.rename(f'files/{file.filename}', f'files/{file_object_id}.{file.filename.split(".")[-1]}')
     info_dict = {
             "name": file.filename,
-            "path": f'files/{file.filename}',
+            "path": f'files/{file_object_id}.{file.filename.split(".")[-1]}',
             "content_type": file.content_type,
             "size": file_size,
             "preview_path": preview_link,
@@ -131,10 +132,32 @@ async def get_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
     return file
 
 
-@router.get("/uploads/cache/{file_name}")
-async def get_uploaded_file(file_name):
+@router.get("/uploads/cache/{file_id}")
+async def get_uploaded_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    file = config.db.files.find_one({"_id": ObjectId(file_id)})
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
     try:
-        return StreamingResponse(open(f'cache/{file_name}', mode="rb"))
+        return StreamingResponse(open(file['preview_path'], mode="rb"))
+
+    except FileNotFoundError as e:
+        print(e)
+        raise HTTPException(status_code=404, detail='file not found')
+
+
+@router.get("/uploads/files/{file_id}")
+async def get_uploaded_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
+    authorize.jwt_required()
+    file = config.db.files.find_one({"_id": ObjectId(file_id)})
+    current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id:
+        raise HTTPException(status_code=400, detail="No company is attached")
+    try:
+        return FileResponse(file['path'],
+                            media_type=file['content_type'],
+                            filename=file['name'])
 
     except FileNotFoundError as e:
         print(e)
