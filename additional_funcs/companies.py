@@ -69,7 +69,3 @@ async def unset_company_at_users_files(company_id: str):
         except FileNotFoundError as e:
             print(e)
     config.db.files.remove({"company_id": ObjectId(company_id)})
-
-
-async def get_permissions(role_id: str):
-    return True
