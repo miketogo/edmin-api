@@ -288,6 +288,8 @@ async def get_file_history(file_id, authorize: auth_middlewares.AuthJWT = Depend
 @router.get("/uploads/cache/{file_id}")
 async def get_uploaded_preview_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
     if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
@@ -305,6 +307,8 @@ async def get_uploaded_preview_file(file_id, authorize: auth_middlewares.AuthJWT
 @router.get("/uploads/files/{file_id}")
 async def get_uploaded_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
+    if not ObjectId.is_valid(file_id):
+        raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
     if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
