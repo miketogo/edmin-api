@@ -63,14 +63,18 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False,
         user_from_session = await additional_funcs.users.check_user_session_in_db(session_id)
     user = await users_additional_funcs.check_user_email_password_in_db(email_or_phone_or_id, _id_check)
     if (user_from_session is True or user_from_session == user) and user is not None:
-        if user["_id"] is not None:
-            user["id"] = str(user["_id"])
-        if user["company_id"] is not None:
-            user["company_id"] = str(user["company_id"])
-        if user["division_id"] is not None:
-            user["division_id"] = str(user["division_id"])
+        user = await users_additional_funcs.delete_object_ids_from_dict(user)
+        user['permissions'] = None
+        user['id'] = user['_id']
         if user["role_id"] is not None:
             user["role_id"] = str(user["role_id"])
+            obj = list(config.db.companies.aggregate(
+                [{"$unwind": "$divisions"},
+                 {"$unwind": "$divisions.available_roles"},
+                 {"$match": {"divisions.available_roles.role_id": ObjectId(user['role_id'])}}]))
+            if len(obj) == 1:
+                user['permissions'] = obj[0]['divisions']['available_roles']['permissions']
+
         del user["_id"]
         if with_password:
             return users_modules.UserInDB(**user)

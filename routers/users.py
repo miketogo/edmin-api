@@ -25,7 +25,6 @@ async def signup(request: Request, user: users_modules.ItemUserSignUp,
     info_dict = user.dict()
     info_dict["password"] = auth_middlewares.get_password_hash(user.password)
     info_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
-    info_dict["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     config.db.users.insert_one(info_dict)
     info_dict = await users_additional_funcs.delete_object_ids_from_dict(info_dict)
     session_id = await users_additional_funcs.update_last_login(info_dict['_id'], request.headers.get("user-agent"))

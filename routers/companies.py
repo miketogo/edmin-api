@@ -62,8 +62,8 @@ async def create_third_party(third_party: companies_modules.ThirdPartyCreate,
                              authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     obj = config.db.companies.find_one_and_update(
@@ -88,8 +88,8 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
                            authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     item_updated = dict()
@@ -125,8 +125,8 @@ async def create_available_signer(available_signer: companies_modules.AvailableS
                                   authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     obj = config.db.companies.find_one_and_update(
@@ -152,8 +152,8 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
                                 authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     item_updated = dict()
@@ -189,8 +189,8 @@ async def create_division(division: companies_modules.DivisionCreate,
                           authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     if division.name == "admin":
@@ -228,8 +228,8 @@ async def edit_division(division: companies_modules.DivisionEdit,
                         authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     if division.name == "admin":
@@ -269,8 +269,8 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
                                 authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     obj = config.db.companies.find_one_and_update(
@@ -296,8 +296,8 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
                                 authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     available_role_obj = list(config.db.companies.aggregate(
@@ -340,8 +340,8 @@ async def create_doc_type(doc_type: companies_modules.DocTypeCreate,
                           authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     obj = config.db.companies.find_one_and_update(
@@ -365,8 +365,8 @@ async def edit_doc_type(doc_type: companies_modules.DocTypeEdit,
                         authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     item_updated = dict()
@@ -391,8 +391,8 @@ async def create_third_party_folder(third_party_folder: companies_modules.ThirdP
                                     authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     obj = config.db.companies.find_one_and_update(
@@ -417,8 +417,8 @@ async def edit_third_party_folder(third_party_folder: companies_modules.ThirdPar
                                   authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_change_company_data']:
+    if current_user.company_id is None or current_user.permissions is None \
+            or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     available_role_obj = list(config.db.companies.aggregate(

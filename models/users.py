@@ -5,6 +5,14 @@ from bson import ObjectId
 import config
 
 
+class Permissions(BaseModel):
+    can_upload_files: bool
+    can_download_files: bool
+    can_add_filters: bool
+    can_change_company_data: bool
+    can_manage_employers: bool
+
+
 class ItemUserSignUp(BaseModel):
     email: str
     password: str
@@ -61,11 +69,11 @@ class User(BaseModel):
     phone: str
     name: str
     surname: str
-    fullname: str
     patronymic: Optional[str] = None
     division_id: Optional[str] = None
     role_id: Optional[str] = None
     company_id: Optional[str] = None
+    permissions: Optional[Permissions] = None
 
 
 class UserInDB(User):

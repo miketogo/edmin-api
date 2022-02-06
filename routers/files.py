@@ -24,8 +24,8 @@ async def create_file(authorize: auth_middlewares.AuthJWT = Depends(),
                       file: UploadFile = File(...)):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_upload_files']:
+    if current_user.company_id is None \
+            or current_user.permissions is None or not current_user.permissions.can_upload_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     file_read = await file.read()
@@ -57,8 +57,8 @@ async def create_file(authorize: auth_middlewares.AuthJWT = Depends(),
 async def add_file_info(data: ItemAddFileInfo, authorize: auth_middlewares.AuthJWT = Depends()):
     authorize.jwt_required()
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_upload_files']:
+    if current_user.company_id is None \
+            or current_user.permissions is None or not current_user.permissions.can_upload_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     item_updated = dict()
@@ -119,8 +119,8 @@ async def delete_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
         raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_upload_files']:
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_upload_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     config.db.files.remove({"_id": ObjectId(file_id)})
@@ -139,8 +139,8 @@ async def get_file(file_id, authorize: auth_middlewares.AuthJWT = Depends()):
         raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_download_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     file = await files_additional_funcs.delete_object_ids_from_dict(file)
@@ -157,8 +157,8 @@ async def get_file_by_third_party_id(third_party_id, authorize: auth_middlewares
                                                       "third_parties.third_party_id": ObjectId(third_party_id)}}]))
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
     if current_user.company_id is None or len(company) != 1 \
-            or str(company[0]['_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+            or str(company[0]['_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_download_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     company = company[0]
@@ -231,8 +231,8 @@ async def get_file_by_third_party_folder_id(third_party_folder_id, authorize: au
          {"$match": {"third_parties.folders.third_party_folder_id": ObjectId(third_party_folder_id)}}]))
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
     if current_user.company_id is None or len(company) != 1 \
-            or str(company[0]['_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+            or str(company[0]['_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_download_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
 
@@ -271,8 +271,8 @@ async def get_file_history(file_id, authorize: auth_middlewares.AuthJWT = Depend
         raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_download_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     history_list = list()
@@ -292,8 +292,8 @@ async def get_uploaded_preview_file(file_id, authorize: auth_middlewares.AuthJWT
         raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_upload_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     try:
@@ -311,8 +311,8 @@ async def get_uploaded_file(file_id, authorize: auth_middlewares.AuthJWT = Depen
         raise HTTPException(status_code=400, detail='Not valid Object_id')
     file = config.db.files.find_one({"_id": ObjectId(file_id)})
     current_user = await auth_middlewares.get_user(authorize.get_jwt_subject(), _id_check=True)
-    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id or not \
-            (await auth_middlewares.get_permissions(current_user.role_id))['can_download_files']:
+    if current_user.company_id is None or file is None or str(file['company_id']) != current_user.company_id \
+            or current_user.permissions is None or not current_user.permissions.can_download_files:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
     try:
