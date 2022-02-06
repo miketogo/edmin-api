@@ -96,15 +96,3 @@ async def revoke_token(jti: str, exp: int):
     seconds = exp - int(str(datetime.timestamp(datetime.now())).split('.')[0])
     config.redis_deny_list.setex(jti, seconds, 'true')
     return True
-
-
-async def get_permissions(role_id: str):
-    if ObjectId.is_valid(role_id):
-        obj_role = (list(config.db.companies.aggregate(
-                    [{"$unwind": "$divisions"},
-                     {"$unwind": "$divisions.available_roles"},
-                     {"$match": {"divisions.available_roles.role_id": ObjectId(role_id)}}])))
-        if len(obj_role) == 1:
-            return obj_role[0]['divisions']['available_roles']['permissions']
-        raise HTTPException(status_code=400, detail='Could not find user role in company object')
-    raise HTTPException(status_code=400, detail='Invalid role_id ObjectId was parsed')
