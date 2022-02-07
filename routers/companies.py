@@ -101,8 +101,8 @@ async def edit_third_party(third_party: companies_modules.ThirdPartyEdit,
                     '$pull': {"third_parties": {"third_party_id": ObjectId(third_party.third_party_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
-                config.db.files.update({"third_party_id": ObjectId(third_party.third_party_id),
-                                        "$set": {"third_party_id": None}})
+                config.db.files.update({"third_party_id": ObjectId(third_party.third_party_id)},
+                                       {"$set": {"third_party_id": None}})
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
         if elem[0] != 'third_party_id' and elem[0] != 'delete_me':
@@ -166,8 +166,8 @@ async def edit_available_signer(available_signer: companies_modules.AvailableSig
                               {"available_signer_id": ObjectId(available_signer.available_signer_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
-                config.db.files.update({"available_signer_id": ObjectId(available_signer.available_signer_id),
-                                        "$set": {"available_signer_id": None}})
+                config.db.files.update({"available_signer_id": ObjectId(available_signer.available_signer_id)},
+                                       {"$set": {"available_signer_id": None}})
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
         if elem[0] != 'available_signer_id' and elem[0] != 'delete_me':
@@ -245,8 +245,8 @@ async def edit_division(division: companies_modules.DivisionEdit,
                     '$pull': {"divisions": {"division_id": ObjectId(division.division_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
-                config.db.files.update({"division_id": ObjectId(division.division_id),
-                                        "$set": {"division_id": None}})
+                config.db.files.update({"division_id": ObjectId(division.division_id)},
+                                       {"$set": {"division_id": None}})
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
         elif elem[0] != 'division_id' and elem[1] is not None and elem[0] != 'delete_me':
@@ -254,8 +254,8 @@ async def edit_division(division: companies_modules.DivisionEdit,
     item_updated["recent_change"] = str(datetime.datetime.now().timestamp()).replace('.', '')
     obj = config.db.companies.find_one_and_update(
         {"_id": ObjectId(current_user.company_id),
-         "divisions.division_id": ObjectId(division.division_id),
-         "divisions.$.name": {"$ne": "admin"}},
+         "divisions": {"$elemMatch": {"division_id": ObjectId(division.division_id),
+                                      "name": {"$ne": "admin"}}}},
         {
             '$set': await companies_additional_funcs.fill_in_object_ids_dict(item_updated)
         }, return_document=ReturnDocument.AFTER)
@@ -273,9 +273,12 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
             or not current_user.permissions.can_change_company_data:
         raise HTTPException(status_code=400, detail='Company is not attached to the user'
                                                     ' or does not have permissions for that action')
+    check_dict = {"_id": ObjectId(current_user.company_id),
+                  "divisions.division_id": ObjectId(available_role.division_id)}
+    if available_role.name == 'admin':
+        check_dict['name'] = {"divisions.$.name": {"$ne": "admin"}}
     obj = config.db.companies.find_one_and_update(
-        {"_id": ObjectId(current_user.company_id),
-         "divisions.division_id": ObjectId(available_role.division_id)},
+        check_dict,
         {
             '$push': {
                 "divisions.$.available_roles": await companies_additional_funcs.fill_in_object_ids_dict(
@@ -305,8 +308,8 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
                  {"$unwind": "$divisions.available_roles"},
                  {"$match": {"divisions.available_roles.role_id": ObjectId(available_role.role_id)}}]))[0]
     if available_role_obj['divisions']['name'] == "admin" \
-            or available_role_obj['divisions']['available_roles']['name'] == "admin":
-        raise HTTPException(status_code=400, detail='Division name cannot be "admin"')
+            and available_role_obj['divisions']['available_roles']['name'] == "admin":
+        raise HTTPException(status_code=400, detail='Division and role name cannot be "admin"')
     item_updated = dict()
     array_filters = [{'outer.division_id': available_role_obj['divisions']['division_id']},
                      {"inner.role_id": ObjectId(available_role.role_id)}]
@@ -314,12 +317,13 @@ async def create_available_role(available_role: companies_modules.AvailableRoles
         if elem[0] == 'delete_me' and elem[1]:
             obj = config.db.companies.find_one_and_update(
                 {"_id": ObjectId(current_user.company_id),
-                 "divisions": {"$elemMatch": {"division_id": available_role_obj['divisions']['division_id'],
-                                              "name": {"$ne": "admin"}}}},
+                 "divisions.division_id": available_role_obj['divisions']['division_id']},
                 {
-                    '$pull': {"divisions": {"available_roles": {"role_id": ObjectId(available_role.role_id)}}}
+                    '$pull': {"divisions.$[].available_roles": {"role_id": ObjectId(available_role.role_id)}}
                 }, return_document=ReturnDocument.AFTER)
             if obj is not None:
+                config.db.users.update({"role_id": ObjectId(available_role.role_id)},
+                                       {"$set": {"role_id": None}})
                 return await companies_additional_funcs.delete_object_ids_from_dict(obj)
             raise HTTPException(status_code=404, detail='Could not find an object')
         elif elem[0] != 'role_id' and elem[1] is not None and elem[0] != 'delete_me':

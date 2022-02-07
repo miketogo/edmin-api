@@ -74,6 +74,8 @@ class User(BaseModel):
     role_id: Optional[str] = None
     company_id: Optional[str] = None
     permissions: Optional[Permissions] = None
+    is_division_admin: Optional[bool] = False
+    is_role_admin: Optional[bool] = False
 
 
 class UserInDB(User):

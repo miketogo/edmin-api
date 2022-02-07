@@ -65,6 +65,8 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False,
     if (user_from_session is True or user_from_session == user) and user is not None:
         user = await users_additional_funcs.delete_object_ids_from_dict(user)
         user['permissions'] = None
+        user['is_division_admin'] = False
+        user['is_role_admin'] = False
         user['id'] = user['_id']
         if user["role_id"] is not None:
             user["role_id"] = str(user["role_id"])
@@ -74,6 +76,16 @@ async def get_user(email_or_phone_or_id: str, _id_check: Optional[bool] = False,
                  {"$match": {"divisions.available_roles.role_id": ObjectId(user['role_id'])}}]))
             if len(obj) == 1:
                 user['permissions'] = obj[0]['divisions']['available_roles']['permissions']
+                if obj[0]['divisions']['name'] == 'admin':
+                    user['is_division_admin'] = True
+                if obj[0]['divisions']['available_roles']['name'] == 'admin':
+                    user['is_role_admin'] = True
+        elif user['division_id'] is not None:
+            user['permissions'] = dict(can_upload_files=False,
+                                       can_download_files=True,
+                                       can_add_filters=False,
+                                       can_change_company_data=False,
+                                       can_manage_employers=False,)
 
         del user["_id"]
         if with_password:
